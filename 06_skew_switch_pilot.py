@@ -16,12 +16,10 @@ Window sensitivity is reported for 63/126/252 trading days — read it as a
 range, do NOT pick the best one as the result.
 
 ⚠️ DATA SOURCE: daily prices come from yfinance, auto_adjust=True (split+dividend
-adjusted). Checked the company DB (2026-08-06, on VPN): FactSet's `fds` schema has
-no price package at all, and the one that does (`edi.eod_us_xnas` etc., EDI vendor)
-is raw unadjusted close — getting split-adjusted returns from it means hooking into
-the corax (corporate-action) pipeline that index computation uses internally, which
-isn't worth building for this exploratory phase-6 signal-design work. Decision:
-keep yfinance, note the source. Revisit if this analysis graduates beyond exploration.
+adjusted). The production version read option surfaces and adjusted prices from an
+internal database; this pilot uses yfinance instead so it runs end-to-end on public
+data. Decision: keep yfinance, note the source. Revisit if this analysis graduates
+beyond exploration.
 
 Usage: .venv/bin/python 06_skew_switch_pilot.py   (reads results/<TICKER>/panel_monthly.csv)
 """

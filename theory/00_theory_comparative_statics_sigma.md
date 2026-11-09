@@ -109,7 +109,7 @@ y(0)=y_{\mathrm{ATM}}=5.338\%\ \text{（量级；以你 verify 脚本为准）}
 
 ## 3. Premium-match 与 \(f_B\)
 
-Uday 口径：两个结构收到的 **组合 premium rate 相同**
+Desk 口径：两个结构收到的 **组合 premium rate 相同**
 
 \[
 f_A\,y(c_A) = f_B\,y(c_B)

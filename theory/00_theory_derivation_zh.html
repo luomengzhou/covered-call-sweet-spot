@@ -93,7 +93,7 @@ $$1+R_{cc}\;=\;\underbrace{(1-f)\,R}_{\text{裸股}}\;+\;\underbrace{f\,\min(R,\
 - (1b) 是你问题里那个\"$f\cdot(\text{stock+premium})+(1-f)\cdot\text{stock}$\"的严格版本 —— 注意被覆盖那部分不是 `stock+premium` 而是 `min(r,c)+premium`，只有在 $r\le c$ 时才等于 `stock+premium`。
 - (1c) 用于**定价与测度变换**：$\min(R,k)$ 是一个\"封顶资产\"。
 
-**与 MerQube attribution 对账**：令 $d_T=r_f=0$，(1) 化为
+**与 index-provider attribution 对账**：令 $d_T=r_f=0$，(1) 化为
 $$\texttt{Index Return}=r-f\cdot\max\big(r-(\texttt{Cap}-1),0\big)+f\cdot\texttt{Call Yield}$$
 即笔记 §10 逐月验证（220 个月误差中位数 0.00000）的那条恒等式。**（脚本校验：max diff = 2.8e-17）**
 
@@ -183,7 +183,7 @@ $$r_0=-\frac{fc+d_T+f\tilde y}{1-f},\qquad r_0>c.$$
 
 ### 3.3 两个结构互相比较（A vs B 的一般形式）
 
-设 A $=(f_A,c_A)$、B $=(f_B,c_B)$，$c_A>c_B$、$0\le f_B<f_A\le1$，且**权利金匹配** $f_Ay(c_A)=f_By(c_B)$（Uday 定的口径）。权利金项相消：
+设 A $=(f_A,c_A)$、B $=(f_B,c_B)$，$c_A>c_B$、$0\le f_B<f_A\le1$，且**权利金匹配** $f_Ay(c_A)=f_By(c_B)$（desk 定的口径）。权利金项相消：
 
 $$D(r)\equiv R_A-R_B=f_B\,(r-c_B)^+-f_A\,(r-c_A)^+\tag{3}$$
 

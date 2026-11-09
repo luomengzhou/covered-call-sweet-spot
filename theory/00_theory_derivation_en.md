@@ -57,7 +57,7 @@ $$1+R_{cc}\\;=\\;\underbrace{(1-f)\\,R}_ {\text{uncovered}}\\;+\\;\underbrace{f\
 - (1b) is the rigorous version of the informal "$f\cdot(\text{stock+premium})+(1-f)\cdot\text{stock}$" idea — note the covered piece is *not* `stock+premium`, it's `min(r,c)+premium`, which equals `stock+premium` only when $r\le c$.
 - (1c) is for **pricing and change-of-measure**: $\min(R,k)$ is a "capped asset."
 
-**Reconciling with MerQube's attribution report**: setting $d_T=r_f=0$, (1) becomes
+**Reconciling with the index provider's attribution report**: setting $d_T=r_f=0$, (1) becomes
 $$\texttt{Index Return}=r-f\cdot\max\big(r-(\texttt{Cap}-1),0\big)+f\cdot\texttt{Call Yield}$$
 which is exactly the identity verified month-by-month in the earlier note's §10 (median error 0.00000 across 220 months). **(Script check: max diff = 2.8e-17)**
 
@@ -147,7 +147,7 @@ For $f=1$ the assigned branch is the constant $c+d_T+\tilde y$, so it has no iso
 
 ### 3.3 Comparing the two structures (general form of A vs B)
 
-Let $A=(f_A,c_A)$, $B=(f_B,c_B)$, with $c_A>c_B$, $0\le f_B<f_A\le1$, and **premium-matched** $f_A\\,y(c_A)=f_B\\,y(c_B)$ (this is the convention Uday set). The premium terms cancel:
+Let $A=(f_A,c_A)$, $B=(f_B,c_B)$, with $c_A>c_B$, $0\le f_B<f_A\le1$, and **premium-matched** $f_A\\,y(c_A)=f_B\\,y(c_B)$ (this is the convention the desk set). The premium terms cancel:
 
 $$D(r)\equiv R_A-R_B=f_B\\,(r-c_B)^+-f_A\\,(r-c_A)^+\tag{3}$$
 

@@ -85,10 +85,10 @@ dividend_ok = np.allclose(direct_test, master_test) and np.allclose(
 print(f"  nonzero dividend convention: q_annual={q_test:.2%}, d_T={d_test:.2%}, "
       f"max diff={np.max(np.abs(direct_test-master_test)):.2e}  {OK(dividend_ok)}")
 
-# MerQube attribution identity (rf=q_annual=d_T=0 convention)
-merqube = r - f * np.maximum(r - (k - 1), 0) + f * y
+# Index-provider attribution identity (rf=q_annual=d_T=0 convention)
+provider = r - f * np.maximum(r - (k - 1), 0) + f * y
 mine = (1 - f) * r + f * np.minimum(r, c) + f * y
-print(f"  MerQube attribution identity: max diff = {np.abs(merqube-mine).max():.2e}  {OK(np.allclose(merqube,mine))}\n")
+print(f"  Index-provider attribution identity: max diff = {np.abs(provider-mine).max():.2e}  {OK(np.allclose(provider,mine))}\n")
 
 
 # ================================================================ 2. breakpoints
@@ -248,7 +248,7 @@ for iv in (0.40, 0.45, 0.50, 0.35):
 print("  NB: lognormal RV. A fat right tail (NVDA earnings gaps) makes E^P[(R-k)^+] larger")
 print("      than lognormal => alpha and geometric edge both shrink. Model artefact warning.")
 
-print("\n--- 5c. iso-premium slice of the (f, c) plane: target premium = ATM-at-f (Uday's basis) ---")
+print("\n--- 5c. iso-premium slice of the (f, c) plane: target premium = ATM-at-f (desk's basis) ---")
 target = call_yield(1.05, sig_iv, tau, rf, q_annual)   # = A's premium, 3.29%
 print(f"  target premium Y={target:.3%}, RV={sig_rv:.0%}, IV flat={sig_iv:.0%}, mu_price={mu_price:.0%}")
 print(f"  {'c':>6} {'f':>7} {'delta_sold':>11} {'vega_sold':>10} {'v/d':>7} {'alpha p.a.':>11} {'sd p.a.':>8} {'geo edge':>9}")

@@ -1,4 +1,4 @@
-"""Step 5 — Does a z-score switch between A and B add value? (Uday's z-score idea, tested.)
+"""Step 5 — Does a z-score switch between A and B add value? (the desk's z-score idea, tested.)
 
 Question: at the start of each month, can an observable signal (momentum, implied vol,
 realized vol, VRP, rate), z-scored, tell us whether to run strategy A (full-notional OTM)

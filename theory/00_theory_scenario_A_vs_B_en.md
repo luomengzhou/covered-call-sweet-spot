@@ -16,7 +16,7 @@
 | Structure A | $f_A=1$, $c_A=5\%$ | full overwrite, $5\%$ OTM ($k_A=1.05$) |
 | Structure B | $c_B=0$ (ATM, $k_B=1$), $f_B$ TBD | partial ATM, **premium-matched** to A |
 
-Premium-matching (Uday): choose $f_B$ so that
+Premium-matching (desk convention): choose $f_B$ so that
 
 $$f_A\,y(c_A)=f_B\,y(c_B)
 \quad\Longrightarrow\quad

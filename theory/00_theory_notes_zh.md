@@ -51,9 +51,9 @@
 2. **Target-yield 的内生性陷阱**：低波期 strike 被迫贴近 ATM（cap 紧）、高波期远（cap 松）→ Cap 列与隐含 vol 代理应正相关；意味着 Income 家族在低波慢牛（2016–21 型）被系统性打爆——是设计使然不是 bug。fixed-delta 选 strike 无此问题，memo 可提为改进方向。
 3. **Sharpe 虚高**：卖方策略收益负偏（小赢多、偶尔大输给基准）→ 主口径用 Calmar/Sortino + 逐月胜负，Sharpe 只作参考。
 
-## 6. Uday 定的实验设计（2026-07-08 stakeholder discussion；原始纪要不在本仓库）
+## 6. Desk 定的实验设计（2026-07 stakeholder discussion；原始纪要不在本仓库）
 
-**对比基准 = 权利金相等（= 同 target yield）。** 这是 Uday 明确定的，不是推测。原话（23:17）："instead of selling a 107 strike call which is 100% notional, I will sell 20% of at-the-money call... **essentially I'm just saying that the same premium** I'm getting by selling a bit of the at-the-money." → 所以 `f·y_ATM = y` 的口径来自这里；他**没有**要求"风险相等"。风险归一化版是我们自己的扩展方向（见下），不冲突，但排在权利金版之后。
+**对比基准 = 权利金相等（= 同 target yield）。** 这是 desk 明确定的，不是推测。原话："instead of selling a 107 strike call which is 100% notional, I will sell 20% of at-the-money call... **essentially I'm just saying that the same premium** I'm getting by selling a bit of the at-the-money." → 所以 `f·y_ATM = y` 的口径来自这里；他**没有**要求"风险相等"。风险归一化版是我们自己的扩展方向（见下），不冲突，但排在权利金版之后。
 
 **他要的两组回测（26:37–27:00）：**
 1. **第一组 = Strategy A**：满仓 covered call（卖 100% notional 的 OTM cap），target yield 从 **1% 扫到 15%**，每 **1–2%** 一档，1 个月到期滚动。
@@ -93,7 +93,7 @@
 | `rate` | 利率 | TB3MS |
 
 **现有数据（`data/`）盘点：**
-- **Exposure family（20/30/40/50）= Strategy B。** 已验证：rebal 里 期权股数/股票股数 = f（20%/30%/40%/50%），卖的是 ATM call（strike%≈99.6%）。attribution 报告给逐月 2008–2026 的 `Underlying Asset Return`(=r)、`Cap`、`Call Yield`(=y_ATM)、`Index Return`。⚠️ 注意这是**固定 f**，不是每月按权利金匹配的 B；严格按 Uday 口径需重跑 premium-matched（f 每月 = y/y_ATM），或用固定 f 先看趋势。
+- **Exposure family（20/30/40/50）= Strategy B。** 已验证：rebal 里 期权股数/股票股数 = f（20%/30%/40%/50%），卖的是 ATM call（strike%≈99.6%）。attribution 报告给逐月 2008–2026 的 `Underlying Asset Return`(=r)、`Cap`、`Call Yield`(=y_ATM)、`Index Return`。⚠️ 注意这是**固定 f**，不是每月按权利金匹配的 B；严格按 desk 口径需重跑 premium-matched（f 每月 = y/y_ATM），或用固定 f 先看趋势。
 - **Income family = Strategy A**，用户确认数据下载中（此前 `data-explorer` 只有一条 `NV_CoveredCall_1_Income`、日频、1 年，不够）。校验点：**Income 各档的 Cap 列应彼此不同**（strike 随 target yield 变）；若又都一样 = 真有问题。
 - **TB3MS.csv** = 3M 国债利率，逐月，利率驱动用。✅
 
@@ -140,7 +140,7 @@
 | 隐含波动 / IV rank(ATM yield) | 权利金肥,卖 call 更值 | **A / 多卖** |
 | VRP = 隐含波 − 已实现波 | 卖方溢价厚 | **A / 多卖** |
 | 估值/乖离 | 涨过头,或回调 | **A**(封顶无妨) |
-| 利率 | Uday 提过(影响期权定价) | 待验证 |
+| 利率 | desk 提过(影响期权定价) | 待验证 |
 
 **关键结论(纠正"只看动量"):** 实务主流是**波动率驱动**——active overlay 直接按 VXN 调覆盖(低波卖 25%、高波卖 50%)。动量是另一条线,且**常与波动率打架**(高动量往往伴高 IV,一个偏 B 一个偏 A)。所以需多信号、用数据定谁强。
 
