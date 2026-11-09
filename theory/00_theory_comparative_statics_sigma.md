@@ -383,7 +383,3 @@ f_B
 - [ ] 写出 \(10\%\to 45\%\) 时 \(f_B\) 的示意路径（仍可纯公式 / 手算几点）  
 - [ ] \(\tau\)、\(r_f\) 的同类比较静态（同样走 \(y\to f_B\to D\)）  
 - [ ] **下一文档**：skew（\(\sigma_A\neq\sigma_B\)）下的 \(f_B\) 与 \(D\)
-
----
-
-*路径：`/Users/luomengzhou/Downloads/00_theory_comparative_statics_sigma.md`*

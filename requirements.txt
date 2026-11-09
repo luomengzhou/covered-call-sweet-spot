@@ -1,5 +1,9 @@
-numpy==2.4.4
-pandas==3.0.5
-matplotlib==3.11.1
-scipy==1.18.0
-yfinance==1.5.2
+# Core (theory pack + empirical pipeline)
+numpy>=1.26
+pandas>=2.0
+scipy>=1.11
+matplotlib>=3.8
+
+# Optional
+# yfinance>=0.2      # only 06_skew_switch_pilot.py (exploratory daily-price source)
+# nbformat, ipywidgets  # only theory/_build_nb.py / AB_explorer.ipynb

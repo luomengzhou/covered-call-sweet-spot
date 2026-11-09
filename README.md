@@ -43,13 +43,28 @@ The numbered scripts run per ticker (`TICKER=AAPL python 01_build_panel.py`):
 | 07 | `07_mag7_compare.py` | Cross-section across the seven names |
 | 08 | `08_income_grid_full.py` | Full ticker × income-tier grid with paired bootstrap Sharpe vs buy-and-hold |
 
-The input panels come from index-provider data that I can't redistribute, so `data/` and `results/` are not included. The theory pack is fully self-contained and runs as-is.
+Also: `06_charts.py` (per-ticker chart pack) and `tools/` (audit and plotting helpers used by steps 05–08).
+
+### Data and sample window
+
+- **Index attribution reports** (one CSV per covered-call index, under `data/<TICKER>/`) from an index provider, covering monthly rebalances from 2008 (NVDA/AAPL/MSFT/AMZN) to 2026-07; GOOGL starts 2014-05, so the Mag7 cross-section (`07`, `08`) uses the common window 2014-05 → 2026-07. This data is licensed and I can't redistribute it, so `data/` and `results/` are not included and the empirical scripts will not run from this repo alone.
+- **Risk-free rate**: 3-month T-bill (FRED `TB3MS`), downloaded once by `01_build_panel.py` and cached in `data/`.
+- **Daily prices** for the exploratory skew-switch pilot (`06_skew_switch_pilot.py`) come from `yfinance` (auto-adjusted); that step is optional.
+
+The theory pack is fully self-contained and runs as-is:
 
 ```bash
 pip install -r requirements.txt
 python theory/ab_core.py          # model self-check + scenario grid
-python theory/00_theory_verify.py # closed form vs Monte Carlo
+python theory/00_theory_verify.py # closed form vs Monte Carlo (4M paths, ~10 s)
+pytest -q                         # smoke tests for the pricing / A-B solver
 ```
+
+## Limitations
+
+- The closed forms assume European calls held to expiry and (for the toy numbers) lognormal returns; fat right tails and skew are handled by the distribution-free $\rho$ criterion, not by the Black-Scholes anchors.
+- The wing-skew tilt in `ab_core.py` is a first-order sensitivity knob, not a fitted SVI/SSVI surface.
+- Empirical results depend on provider index construction (monthly roll, premium-targeted strikes) and are not reproducible without that data.
 
 ## License
 
