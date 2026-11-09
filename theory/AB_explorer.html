@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Covered Call A vs B — Interactive Explorer</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#161b22; --panel2:#1c2230; --line:#2a3340;
+    --ink:#e6edf3; --ink2:#9aa7b4; --ink3:#6b7885;
+    --a:#4da3ff; --b:#ff9f43; --bh:#8b93a1; --d:#48d18d; --warn:#ff6b6b;
+    --accent:#7c5cff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  header{
+    padding:14px 20px; border-bottom:1px solid var(--line);
+    display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+    background:var(--panel);
+  }
+  header h1{font-size:15px; margin:0; font-weight:600; letter-spacing:.2px}
+  header .sub{color:var(--ink3); font-size:11.5px}
+  .verdict{
+    margin-left:auto; font-size:12px; padding:5px 11px; border-radius:20px;
+    background:rgba(124,92,255,.12); border:1px solid rgba(124,92,255,.35);
+    color:#c3b4ff; font-variant-numeric:tabular-nums;
+  }
+  .verdict.invalid{
+    background:rgba(255,107,107,.12); border-color:rgba(255,107,107,.45);
+    color:var(--warn);
+  }
+  .wrap{display:grid; grid-template-columns:298px minmax(0,1fr); gap:0; height:calc(100vh - 52px)}
+  /* ---------- sidebar ---------- */
+  aside{
+    background:var(--panel); border-right:1px solid var(--line);
+    padding:14px 16px 20px; overflow-y:auto; height:100%;
+  }
+  .grp{margin-bottom:18px}
+  .grp>h2{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.9px;
+    color:var(--ink3); margin:0 0 9px; font-weight:600;
+  }
+  .row{margin-bottom:11px}
+  .row .lab{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px}
+  .row .lab span:first-child{color:var(--ink2); font-size:11.5px}
+  .row .lab output{
+    font-variant-numeric:tabular-nums; font-weight:600; font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:16px; background:transparent; margin:0; cursor:ew-resize;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:3px; background:var(--line); border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+    background:var(--ink); margin-top:-5px; border:none;
+  }
+  input[type=range]:hover::-webkit-slider-thumb{background:#fff}
+  input[type=range]::-moz-range-track{height:3px; background:var(--line); border-radius:2px}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;background:var(--ink)}
+  .note{font-size:10.5px; color:var(--ink3); line-height:1.45; margin-top:6px}
+  .chk{display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--ink2); margin-top:8px}
+  .chk input{accent-color:var(--accent)}
+  /* ---------- main ---------- */
+  main{padding:12px 18px 20px; overflow-y:auto; overflow-x:hidden; height:100%}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:8px; margin-bottom:10px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:7px; padding:8px 10px}
+  .card .k{font-size:10px; color:var(--ink3); text-transform:uppercase; letter-spacing:.6px; white-space:nowrap}
+  .card .v{
+    font-size:16px; font-weight:600; margin-top:2px; font-variant-numeric:tabular-nums;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .card .h{font-size:10px; color:var(--ink3); margin-top:1px}
+  .charts{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .chart{background:var(--panel); border:1px solid var(--line); border-radius:7px; padding:10px 12px 6px}
+  .chart.wide{grid-column:1 / -1}
+  .chart h3{margin:0 0 2px; font-size:12.5px; font-weight:600}
+  .chart p{margin:0 0 6px; font-size:10.5px; color:var(--ink3)}
+  canvas{width:100%; display:block}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--ink2); padding:2px 0 4px}
+  .legend i{display:inline-block; width:16px; height:2px; vertical-align:middle; margin-right:5px}
+  table{width:100%; border-collapse:collapse; font-size:11.5px; font-variant-numeric:tabular-nums}
+  table th,table td{padding:4px 6px; text-align:right; border-bottom:1px solid var(--line)}
+  table th:first-child,table td:first-child{text-align:left}
+  table th{color:var(--ink3); font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:.5px}
+  table td{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .checkrow{font-size:10.5px; color:var(--ink3); margin-top:8px; font-family:ui-monospace,monospace}
+  .checkrow b{color:var(--d); font-weight:600}
+  .checkrow b.bad{color:var(--warn)}
+  input.num{
+    width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:5px;
+    color:var(--ink); font:12px ui-monospace,SFMono-Regular,Menlo,monospace; padding:5px 8px;
+  }
+  input.num:focus{outline:none; border-color:var(--accent)}
+  select{
+    background:var(--panel2); border:1px solid var(--line); border-radius:5px; color:var(--ink);
+    font:11.5px ui-monospace,Menlo,monospace; padding:4px 6px; margin-bottom:8px; max-width:100%;
+  }
+  #grid td.na{color:var(--ink3)}
+  #grid th:first-child,#grid td:first-child{white-space:nowrap}
+  @media (max-width:1000px){ .wrap{grid-template-columns:1fr} .charts{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Covered Call · A vs B — Interactive Explorer</h1>
+  <span class="sub">A = f<sub>A</sub> notional @ c<sub>A</sub> OTM &nbsp;·&nbsp; B = f<sub>B</sub> notional @ c<sub>B</sub> &nbsp;·&nbsp; f<sub>B</sub> solved from the equal-premium constraint</span>
+  <span class="verdict" id="verdict"></span>
+</header>
+
+<div class="wrap">
+<aside>
+
+  <div class="grp">
+    <h2>Market</h2>
+    <div class="row" data-slider="S0"   data-min="10"   data-max="1000" data-step="1"     data-fmt="px"></div>
+    <div class="row" data-slider="sig"  data-min="0.10" data-max="0.60" data-step="0.005" data-fmt="pct1"></div>
+    <div class="row" data-slider="tau"  data-min="1"    data-max="12"   data-step="1"     data-fmt="mo"></div>
+    <div class="row" data-slider="rf"   data-min="0"    data-max="0.08" data-step="0.0025" data-fmt="pct2"></div>
+    <div class="row" data-slider="q"    data-min="0"    data-max="0.06" data-step="0.0025" data-fmt="pct2"></div>
+    <div class="row" data-slider="bor"  data-min="0"    data-max="0.05" data-step="0.0025" data-fmt="pct2"></div>
+  </div>
+
+  <div class="grp">
+    <h2>Skew</h2>
+    <div class="row" data-slider="wing" data-min="-0.05" data-max="0.05" data-step="0.001" data-fmt="volpts"></div>
+    <div class="note" id="skewNote"></div>
+  </div>
+
+  <div class="grp">
+    <h2>Structure</h2>
+    <div class="row" data-slider="cA" data-min="0"    data-max="0.25" data-step="0.0025" data-fmt="pct2"></div>
+    <div class="row" data-slider="cB" data-min="0"    data-max="0.15" data-step="0.0025" data-fmt="pct2"></div>
+    <div class="row" data-slider="fA" data-min="0.20" data-max="1.00" data-step="0.01"   data-fmt="mult"></div>
+  </div>
+
+  <div class="grp">
+    <h2>Trade size</h2>
+    <div class="row">
+      <div class="lab"><span>Notional (USD)</span><output id="notionalOut"></output></div>
+      <input class="num" type="text" id="notional" value="10,000,000" inputmode="numeric" spellcheck="false">
+    </div>
+    <div class="note">Payoffs are degree-1 homogeneous in position size: every dollar figure scales
+      linearly with notional, and f_B (a ratio of premiums) never depends on it.</div>
+  </div>
+
+  <div class="grp">
+    <h2>View</h2>
+    <div class="row" data-slider="rmax" data-min="0.15" data-max="1.00" data-step="0.05" data-fmt="pct0"></div>
+    <label class="chk"><input type="checkbox" id="showExcess"> overlay excess vs buy&amp;hold</label>
+    <label class="chk"><input type="checkbox" id="showMarks" checked> annotate ceiling / slope / r**</label>
+  </div>
+
+</aside>
+
+<main>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="charts">
+
+    <div class="chart wide">
+      <h3>1 &nbsp;Single-period return</h3>
+      <p>R(r) = r + period dividend + f·ỹ − f·(r − c)<sup>+</sup>. q is an annualized pricing input only; this toy view uses d<sub>q</sub> = exp(qτ) − 1 as the period-dividend proxy. A is capped when f<sub>A</sub> = 1; B keeps slope 1 − f<sub>B</sub> above c<sub>B</sub>.</p>
+      <div class="legend">
+        <span><i style="background:var(--a)"></i>A — f<sub>A</sub> @ c<sub>A</sub></span>
+        <span><i style="background:var(--b)"></i>B — f<sub>B</sub> @ c<sub>B</sub></span>
+        <span><i style="background:var(--bh)"></i>buy &amp; hold</span>
+      </div>
+      <canvas id="c1" height="230"></canvas>
+    </div>
+
+    <div class="chart">
+      <h3>2 &nbsp;D(r) = R<sub>A</sub> − R<sub>B</sub></h3>
+      <p>For a valid equal-premium comparison, premium and common dividend terms cancel exactly → a zero-cost ratio call spread. Peak f<sub>B</sub>(c<sub>A</sub>−c<sub>B</sub>) at r = c<sub>A</sub>, second zero at r**.</p>
+      <canvas id="c2" height="180"></canvas>
+    </div>
+
+    <div class="chart">
+      <h3>3 &nbsp;Sweep c<sub>A</sub> — the (f, c) trade-off</h3>
+      <p>D<sub>peak</sub>(c) = c·f<sub>B</sub>(c) behaves like a price×quantity curve: at short tenor it has
+        a real interior maximum (marked, where widening the strike further starts losing more coverage
+        f<sub>B</sub> than the wider gap gains); at long tenor that maximum moves past 25% OTM, so within
+        this window the curve is monotone and concave, not flat. r** always keeps rising. Everything else
+        held at the current slider values.</p>
+      <canvas id="c3" height="180"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--d)"></i>D<sub>peak</sub> (left)</span>
+        <span><i style="background:var(--accent)"></i>r** (right)</span>
+      </div>
+      <div class="note" id="sweepNote"></div>
+    </div>
+
+    <div class="chart">
+      <h3>4 &nbsp;Sweep tenor — the term structure</h3>
+      <p>Same D<sub>peak</sub> / r** pair, now against tenor at the current caps — this is the axis to drag
+        to see how the structure evolves over months, instead of reading it off chart 4 at a fixed tenor.
+        D<sub>peak</sub> rises and flattens (more coverage f<sub>B</sub> is needed at longer tenor to match
+        the same premium, so A's edge grows but decelerates); r** rises almost linearly — a longer-dated A
+        needs a much bigger rally before B catches up.</p>
+      <canvas id="c5" height="180"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--d)"></i>D<sub>peak</sub> (left)</span>
+        <span><i style="background:var(--accent)"></i>r** (right)</span>
+      </div>
+    </div>
+
+    <div class="chart wide">
+      <h3>Legs, premia and portfolio Greeks</h3>
+      <table id="tbl"></table>
+      <div class="checkrow" id="checks"></div>
+    </div>
+
+    <div class="chart wide">
+      <h3>5 &nbsp;Term grid — strike × tenor</h3>
+      <p>Every cell prices the full-overwrite leg at that cap and tenor on the current smile
+        (σ_ATM, wing) and carry inputs; f<sub>B</sub> / r** / D<sub>peak</sub> match it against the
+        <b>same-tenor</b> anchor at c<sub>B</sub>. “—” = infeasible: cap below c<sub>B</sub>, or wing
+        outside its feasible domain at that strike (vol positivity / vertical-spread no-arbitrage).</p>
+      <select id="gridQty">
+        <option value="prem">premium — % of spot</option>
+        <option value="premUsd">premium — $ on notional (full overwrite)</option>
+        <option value="prob">P(called away) — Q, smile-consistent</option>
+        <option value="qval">Q-value of upside sold ỹ = premium·e^(r_f·τ)</option>
+        <option value="fB">equal-premium f_B — vs same-tenor anchor c_B</option>
+        <option value="rss">crossover r** — B takes over above this</option>
+        <option value="dpeak">A's max edge D_peak — % of spot</option>
+      </select>
+      <table id="grid"></table>
+      <div class="checkrow" id="gridNote"></div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<script>
+"use strict";
+/* ======================================================================
+   Covered call A vs B — self-contained, no external dependencies.
+   Mirrors ab_core.py; both reproduce the 2026-07-31 anchors:
+   y_A=3.2946%, y_B=5.3382%, f_B=0.6172, D(5%)=3.09%, r**=13.06%.
+   ====================================================================== */
+
+const SKEW_REF = 0.05;            // wing quoted as vol pts per 5% OTM
+const MIN_VOL  = 1e-4;
+const MIN_PREMIUM = 1e-8;         // smallest meaningful premium, /spot — below
+                                  // this the equal-premium construction is
+                                  // degenerate; mirrors ab_core.MIN_PREMIUM
+                                  // (feasibility = economic floor, not FP luck)
+
+/* ---------- market intuition for the wing slider (自用笔记) -----------
+   wing < 0 = 常规 call wing（OTM call 比 ATM 便宜）；wing > 0 = 反过来。
+   - 股指/大盘（SPX 等）：常年深度 put skew，杠杆效应 + 结构性买 put 保险的
+     持续需求。wing 明显偏负，量级可到 -0.02 ~ -0.03 / 5% OTM。这是股票类
+     资产里最典型、最稳定的形态。
+   - 单只成长/动量股（NVDA 这类）：同方向但浅很多——除了下跌恐慌，还有
+     并购/财报暴涨的尾部预期部分抵消了 put skew。实测 NVDA ≈ -0.0052，
+     方向对但幅度只有股指的四分之一左右。
+   - 商品（原油等）：常见反过来的 right skew（wing > 0）——怕断供/价格
+     暴涨，是少数 wing 为正有真实市场依据的资产类。
+   - 外汇：更接近对称双翼 smile，方向随货币对基本面变，不是单一符号能
+     描述的（本模型的单斜率 wing 对 FX 不适用，仅股票/商品单边参考）。
+   下面滑杆的范围（±5 vol / 5% OTM）覆盖了从"深度股指级 put skew"到
+   "商品级 right skew"的量级，不设具体情景按钮，自己按上面的直觉去滑。
+   ------------------------------------------------------------------- */
+
+/* ---------- normal cdf / pdf (Numerical Recipes erfc, ~1e-16) --------- */
+const ERFC_COF=[-1.3026537197817094,6.4196979235649026e-1,1.9476473204185836e-2,
+ -9.561514786808631e-3,-9.46595344482036e-4,3.66839497852761e-4,4.2523324806907e-5,
+ -2.0278578112534e-5,-1.624290004647e-6,1.303655835580e-6,1.5626441722e-8,
+ -8.5238095915e-8,6.529054439e-9,5.059343495e-9,-9.91364156e-10,-2.27365122e-10,
+ 9.6467911e-11,2.394038e-12,-6.886027e-12,8.94487e-13,3.13092e-13,-1.12708e-13,
+ 3.81e-16,7.106e-15];
+function erfc(x){
+  const z=Math.abs(x), t=2/(2+z), ty=4*t-2;
+  let d=0, dd=0;
+  for(let j=ERFC_COF.length-1;j>0;j--){ const tmp=d; d=ty*d-dd+ERFC_COF[j]; dd=tmp; }
+  const ans=t*Math.exp(-z*z+0.5*(ERFC_COF[0]+ty*d)-dd);
+  return x>=0?ans:2-ans;
+}
+const N  = x => 0.5*erfc(-x/Math.SQRT2);
+const np = x => Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI);
+
+/* ---------- Black-Scholes with pricing yield + stock-borrow/carry ----- */
+function bsCall(S,K,sig,tau,rf,q,bor){
+  sig=Math.max(sig,MIN_VOL); tau=Math.max(tau,1e-8);
+  const carry=rf-q-bor, fwd=S*Math.exp(carry*tau);
+  const disc=Math.exp(-rf*tau), dfqb=Math.exp(-(q+bor)*tau);
+  const srt=sig*Math.sqrt(tau);
+  const d1=(Math.log(fwd/K)+0.5*sig*sig*tau)/srt, d2=d1-srt;
+  const nd1=N(d1), nd2=N(d2), pd1=np(d1);
+  return {
+    price: disc*(fwd*nd1-K*nd2),
+    delta: dfqb*nd1,
+    gamma: dfqb*pd1/(S*srt),
+    vega : S*dfqb*pd1*Math.sqrt(tau),
+    theta: -S*dfqb*pd1*sig/(2*Math.sqrt(tau))+(q+bor)*S*dfqb*nd1-rf*K*disc*nd2,
+    rho  : K*tau*disc*nd2,
+    d1, d2
+  };
+}
+const rawSkewVol = (sigAtm,wing,c) => sigAtm + wing*(c/SKEW_REF);
+
+/* Smile-consistent digital: P^Q(S_T > K) = N(d2) − e^{carry·τ}·n(d1)·√τ·wing/0.05.
+   Full dC/dK on C(K, σ(K)) with the linear tilt (dσ/dK = wing/(0.05·S), the S
+   cancels against vega). Clamped to [0,1]; hitting the clamp = the tilt violates
+   density positivity (butterfly no-arb) at that strike.
+   Derivation: theory/00_theory_dashboard_desk_view.md §3. */
+function callProbQ(g,tau,carry,wing){
+  const adj = Math.exp(carry*tau)*np(g.d1)*Math.sqrt(tau)*wing/SKEW_REF;
+  return Math.min(1, Math.max(0, N(g.d2) - adj));
+}
+
+/* ---------- state ----------------------------------------------------- */
+const BASE = {S0:100, sig:0.45, tau:1, rf:0.04, q:0, dividendReturn:null, bor:0, wing:0.0,
+              cA:0.05, cB:0.00, fA:1.00, rmax:0.40};
+const P = Object.assign({}, BASE);
+
+const LABEL = {
+  S0:"Spot S₀", sig:"ATM implied vol σ_ATM", tau:"Tenor τ",
+  rf:"Risk-free rate r_f", q:"Pricing yield q (annualized)", bor:"Stock-borrow / carry (pricing)",
+  wing:"Call wing  vol pts / 5% OTM", cA:"A cap  c_A (OTM)",
+  cB:"B cap  c_B  (0 = ATM)", fA:"A notional fraction f_A",
+  rmax:"Return axis max"
+};
+const FMT = {
+  px  : v => v.toFixed(0),
+  pct0: v => (100*v).toFixed(0)+"%",
+  pct1: v => (100*v).toFixed(1)+"%",
+  pct2: v => (100*v).toFixed(2)+"%",
+  mo  : v => v+(v===1?" month":" months"),
+  mult: v => v.toFixed(3)+"×",
+  volpts: v => (v>=0?"+":"")+(100*v).toFixed(1)+" vol"
+};
+
+/* ---------- solve ----------------------------------------------------- */
+function solve(p){
+  const tau = p.tau/12;                       // slider is in months
+  const sigA = rawSkewVol(p.sig,p.wing,p.cA), sigB = rawSkewVol(p.sig,p.wing,p.cB);
+  const invalid = (code,error,extra={}) =>
+    Object.assign({valid:false,code,error,p,tau,sigA,sigB},extra);
+  if(p.cA < p.cB)
+    return invalid("cap-order","c_A must be greater than or equal to c_B.");
+  if(sigA <= MIN_VOL || sigB <= MIN_VOL)
+    return invalid("vol-floor",
+      `Raw wing volatility must be above MIN_VOL (${MIN_VOL}); got σ_A=${sigA} and σ_B=${sigB}.`);
+  const KA = p.S0*(1+p.cA), KB = p.S0*(1+p.cB);
+  const gA = bsCall(p.S0,KA,sigA,tau,p.rf,p.q,p.bor);
+  const gB = bsCall(p.S0,KB,sigB,tau,p.rf,p.q,p.bor);
+  const yA = gA.price/p.S0, yB = gB.price/p.S0;
+  if(!(isFinite(yA) && isFinite(yB) && yA>MIN_PREMIUM && yB>MIN_PREMIUM))
+    return invalid("premium",
+      "Both option premiums must be finite and above MIN_PREMIUM of spot.",
+      {KA,KB,gA,gB,yA,yB});
+  const comp = Math.exp(p.rf*tau);
+  const ytA = yA*comp, ytB = yB*comp;
+  const fB = p.fA*yA/yB;
+  if(!isFinite(fB) || fB < 0 || fB > 1+1e-12)
+    return invalid("fB-bounds",
+      `Equal-premium solve implies infeasible f_B=${String(fB)}; coverage must be in [0, 1].`,
+      {KA,KB,gA,gB,yA,yB,ytA,ytB,fB});
+  if(p.cA > p.cB && fB >= p.fA-1e-12)
+    return invalid("ordering",
+      "When c_A > c_B, equal-premium matching requires f_B < f_A.",
+      {KA,KB,gA,gB,yA,yB,ytA,ytB,fB});
+  const dq = p.dividendReturn == null ? Math.expm1(p.q*tau) : p.dividendReturn;
+  const Dpeak = fB*(p.cA-p.cB);
+  const den = p.fA-fB;
+  const rss = den>1e-12 ? (p.fA*p.cA-fB*p.cB)/den : NaN;
+
+  const RA = r => r+dq+p.fA*ytA-p.fA*Math.max(r-p.cA,0);
+  const RB = r => r+dq+fB   *ytB-fB   *Math.max(r-p.cB,0);
+  const BH = r => r+dq;
+  const D  = r => fB*Math.max(r-p.cB,0)-p.fA*Math.max(r-p.cA,0);
+
+  // Q-probability of finishing above each cap: flat-smile N(d2) at the
+  // strike's own IV, plus the smile-consistent digital the page displays.
+  const carry = p.rf-p.q-p.bor;
+  const probBsA = N(gA.d2), probBsB = N(gB.d2);
+  const probA = callProbQ(gA,tau,carry,p.wing);
+  const probB = callProbQ(gB,tau,carry,p.wing);
+
+  return {valid:true,p,tau,sigA,sigB,KA,KB,gA,gB,yA,yB,ytA,ytB,fB,dq,Dpeak,rss,
+          rstarA:p.cA+ytA, rstarB:p.cB+ytB,
+          ceilA: Math.abs(p.fA-1)<1e-12 ? p.cA+dq+ytA : NaN,
+          slopeB:1-fB, probBsA,probBsB,probA,probB, RA,RB,BH,D};
+}
+
+/* ---------- feasible wing domain (slider clamp) ------------------------
+   Below: vol positivity / numeric premium existence at the widest cap.
+   Above: the ordering condition f_B < f_A, i.e. y_A < y_B, i.e. call-price
+   monotonicity in strike — vertical-spread no-arbitrage.  solve() is valid
+   at wing = 0 for any otherwise-valid state, so both edges come from
+   bisection on solve-validity.  theory/00_theory_dashboard_desk_view.md §4. */
+const WING_HARD = [-0.05, 0.05];      // quoted slider range
+const WING_RANGE = WING_HARD.slice(); // effective, refreshed by normalize()
+function wingRange(p){
+  const ok = w => solve(Object.assign({},p,{wing:w})).valid;
+  if(!ok(0)) return WING_HARD.slice();          // degenerate; UI cannot reach
+  const edge=(good,bad)=>{
+    for(let i=0;i<48;i++){ const mid=0.5*(good+bad); if(ok(mid)) good=mid; else bad=mid; }
+    return good;
+  };
+  return [ok(WING_HARD[0]) ? WING_HARD[0] : edge(0,WING_HARD[0]),
+          ok(WING_HARD[1]) ? WING_HARD[1] : edge(0,WING_HARD[1])];
+}
+
+/* ---------- notional (desk translation, degree-1 homogeneity) ---------- */
+let NOTIONAL = 1e7;
+const parseNotional = str => {
+  const v = parseFloat(String(str).replace(/[^0-9.]/g,""));
+  return isFinite(v) && v>0 ? v : 1e7;
+};
+const fmtMoney = v => "$"+Math.round(v).toLocaleString("en-US");
+
+/* ---------- tiny canvas plotting ------------------------------------- */
+function setupCanvas(cv){
+  const dpr = window.devicePixelRatio||1;
+  if(cv.dataset.baseH===undefined) cv.dataset.baseH=cv.getAttribute("height");
+  const w = cv.clientWidth, h = parseInt(cv.dataset.baseH,10);
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  cv.style.height = h+"px";
+  const g = cv.getContext("2d");
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);
+  return {g,w,h};
+}
+function niceTicks(lo,hi,target){
+  const span=hi-lo; if(!(span>0)) return [lo];
+  const raw=span/target, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag;
+  const step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let t=Math.ceil(lo/step)*step; t<=hi+1e-12; t+=step) out.push(t);
+  return out;
+}
+const PCT_FMT = t => (100*t).toFixed(0)+"%";
+function makeAxes(o,xlo,xhi,ylo,yhi,pad,xFmt){
+  const {g,w,h}=o;
+  const m = Object.assign({l:52,r:14,t:10,b:26}, pad||{});
+  xFmt = xFmt || PCT_FMT;
+  const X = x => m.l + (x-xlo)/(xhi-xlo)*(w-m.l-m.r);
+  const Y = y => h-m.b - (y-ylo)/(yhi-ylo)*(h-m.t-m.b);
+  g.strokeStyle="#2a3340"; g.fillStyle="#6b7885";
+  g.font="10px ui-monospace,Menlo,monospace"; g.lineWidth=1;
+  niceTicks(ylo,yhi,5).forEach(t=>{
+    const y=Y(t);
+    g.globalAlpha = Math.abs(t)<1e-12?0.85:0.35;
+    g.beginPath(); g.moveTo(m.l,y); g.lineTo(w-m.r,y); g.stroke();
+    g.globalAlpha=1;
+    g.textAlign="right"; g.textBaseline="middle";
+    g.fillText(PCT_FMT(t), m.l-6, y);
+  });
+  niceTicks(xlo,xhi,6).forEach(t=>{
+    const x=X(t);
+    g.globalAlpha = Math.abs(t)<1e-12?0.85:0.25;
+    g.beginPath(); g.moveTo(x,m.t); g.lineTo(x,h-m.b); g.stroke();
+    g.globalAlpha=1;
+    g.textAlign="center"; g.textBaseline="top";
+    g.fillText(xFmt(t), x, h-m.b+6);
+  });
+  return {X,Y,m,g,w,h};
+}
+function line(ax,fn,xlo,xhi,color,width,dash){
+  const {g,X,Y}=ax;
+  g.save(); g.strokeStyle=color; g.lineWidth=width||1.8;
+  g.setLineDash(dash||[]); g.lineJoin="round"; g.beginPath();
+  const n=480;
+  for(let i=0;i<=n;i++){ const x=xlo+(xhi-xlo)*i/n; const y=fn(x);
+    if(i===0) g.moveTo(X(x),Y(y)); else g.lineTo(X(x),Y(y)); }
+  g.stroke(); g.restore();
+}
+function marker(ax,x,y,color,label,align){
+  const {g,X,Y}=ax;
+  g.save();
+  g.fillStyle=color; g.beginPath(); g.arc(X(x),Y(y),3.2,0,7); g.fill();
+  if(label){
+    g.font="10px ui-monospace,Menlo,monospace"; g.fillStyle=color;
+    g.textAlign = align||"left"; g.textBaseline="bottom";
+    g.fillText(label, X(x)+(align==="right"?-6:6), Y(y)-5);
+  }
+  g.restore();
+}
+function vline(ax,x,color,label){
+  const {g,X,m,h}=ax;
+  g.save(); g.strokeStyle=color; g.globalAlpha=.55; g.lineWidth=1;
+  g.setLineDash([3,3]); g.beginPath();
+  g.moveTo(X(x),m.t); g.lineTo(X(x),h-m.b); g.stroke();
+  g.globalAlpha=1; g.setLineDash([]);
+  if(label){ g.fillStyle=color; g.font="10px ui-monospace,Menlo,monospace";
+    g.textAlign="left"; g.textBaseline="top"; g.fillText(label, X(x)+4, m.t+2); }
+  g.restore();
+}
+
+/* ---------- charts ---------------------------------------------------- */
+function drawReturns(s){
+  const cv=document.getElementById("c1"); const o=setupCanvas(cv);
+  const showEx=document.getElementById("showExcess").checked;
+  const showMk=document.getElementById("showMarks").checked;
+  const xlo=-0.30, xhi=s.p.rmax;
+  const fns = showEx ? [r=>s.RA(r)-s.BH(r), r=>s.RB(r)-s.BH(r), ()=>0]
+                     : [s.RA, s.RB, s.BH];
+  let lo=Infinity, hi=-Infinity;
+  for(let i=0;i<=200;i++){ const r=xlo+(xhi-xlo)*i/200;
+    fns.forEach(f=>{ const v=f(r); lo=Math.min(lo,v); hi=Math.max(hi,v); }); }
+  const padY=(hi-lo)*0.10 || 0.02;
+  const ax=makeAxes(o,xlo,xhi,lo-padY,hi+padY);
+  line(ax,fns[2],xlo,xhi,"#8b93a1",1.4,[5,4]);
+  line(ax,fns[0],xlo,xhi,"#4da3ff",2.0);
+  line(ax,fns[1],xlo,xhi,"#ff9f43",2.0);
+  if(showMk && !showEx){
+    if(isFinite(s.ceilA)) marker(ax,Math.min(xhi,s.p.cA+(xhi-s.p.cA)*0.55),s.ceilA,
+      "#4da3ff","ceiling c_A+ỹ_A = "+(100*s.ceilA).toFixed(2)+"%");
+    const rb=Math.min(xhi, s.p.cB+(xhi-s.p.cB)*0.80);
+    marker(ax,rb,s.RB(rb),"#ff9f43","slope 1−f_B = "+s.slopeB.toFixed(3),"right");
+    if(isFinite(s.rss) && s.rss<xhi) vline(ax,s.rss,"#7c5cff","r** "+(100*s.rss).toFixed(2)+"%");
+  }
+  const g=ax.g;
+  g.fillStyle="#6b7885"; g.font="10px ui-monospace,Menlo,monospace";
+  g.textAlign="left"; g.textBaseline="top";
+  g.fillText(showEx?"excess return vs buy & hold":"portfolio return", ax.m.l+4, ax.m.t+2);
+  g.textAlign="right"; g.textBaseline="bottom";
+  g.fillText("underlying price return r", ax.w-ax.m.r, ax.h-4);
+}
+
+function drawD(s){
+  const cv=document.getElementById("c2"); const o=setupCanvas(cv);
+  const xlo=-0.10, xhi=s.p.rmax;
+  let lo=0, hi=0;
+  for(let i=0;i<=200;i++){ const v=s.D(xlo+(xhi-xlo)*i/200); lo=Math.min(lo,v); hi=Math.max(hi,v); }
+  const pad=(hi-lo)*0.12||0.01;
+  const ax=makeAxes(o,xlo,xhi,lo-pad,hi+pad);
+  // shade who-wins regions
+  const {g,X,Y,m,h}=ax;
+  const y0=Y(0);
+  g.save();
+  g.fillStyle="rgba(77,163,255,.10)";
+  g.fillRect(X(s.p.cB), m.t, Math.max(0,(isFinite(s.rss)?X(s.rss):ax.w-m.r)-X(s.p.cB)), h-m.b-m.t);
+  if(isFinite(s.rss) && s.rss<xhi){
+    g.fillStyle="rgba(255,159,67,.10)";
+    g.fillRect(X(s.rss), m.t, ax.w-m.r-X(s.rss), h-m.b-m.t);
+  }
+  g.restore();
+  line(ax,s.D,xlo,xhi,"#48d18d",2.0);
+  marker(ax,s.p.cA,s.Dpeak,"#48d18d","peak f_B(c_A−c_B) = "+(100*s.Dpeak).toFixed(2)+"%");
+  if(isFinite(s.rss) && s.rss<xhi) vline(ax,s.rss,"#7c5cff","r** "+(100*s.rss).toFixed(2)+"%");
+  g.fillStyle="#6b7885"; g.font="10px ui-monospace,Menlo,monospace";
+  g.textAlign="left"; g.textBaseline="top";
+  g.fillText("D > 0 → A ahead", m.l+4, m.t+2);
+  g.textAlign="right"; g.textBaseline="bottom";
+  g.fillText("r", ax.w-m.r, h-4);
+}
+
+/* Shared renderer for the two D_peak/r** sweep charts (cap and tenor axes).
+   xform maps the swept variable to the Params field solve() expects, so both
+   charts share one code path instead of near-duplicating it. */
+function drawSweepChart(cv, xlo, xhi, base, xform, xLabel, curTag, curLabel, xFmt){
+  const o=setupCanvas(cv);
+  const n=160, pts=[];
+  for(let i=0;i<=n;i++){
+    const x=xlo+(xhi-xlo)*i/n;
+    const t=solve(Object.assign({},base,xform(x)));
+    pts.push({x, valid:t.valid, dp:t.Dpeak, rss:t.rss});
+  }
+  const valid=pts.filter(p=>p.valid);
+  if(!valid.length){ drawInvalidCanvas(cv,"No valid sweep values."); return null; }
+  const dpMax=Math.max(...valid.map(p=>p.dp))*1.12 || 0.05;
+  const finite=valid.filter(p=>isFinite(p.rss)).map(p=>p.rss);
+  const rssMax=(finite.length?Math.max(...finite):0.5)*1.12 || 0.5;
+  const ax=makeAxes(o,xlo,xhi,0,dpMax,{r:52},xFmt);
+  const {g,X,Y,m,w,h}=ax;
+  const Y2 = v => h-m.b - v/rssMax*(h-m.t-m.b);
+  g.save(); g.fillStyle="#7c5cff"; g.font="10px ui-monospace,Menlo,monospace";
+  g.textAlign="left"; g.textBaseline="middle";
+  niceTicks(0,rssMax,5).forEach(t=>g.fillText((100*t).toFixed(0)+"%", w-m.r+6, Y2(t)));
+  g.restore();
+  g.save(); g.strokeStyle="#48d18d"; g.lineWidth=2; g.beginPath();
+  let startedPeak=false;
+  pts.forEach(p=>{ if(!p.valid){ startedPeak=false; return; }
+    if(!startedPeak){ g.moveTo(X(p.x),Y(p.dp)); startedPeak=true; } else g.lineTo(X(p.x),Y(p.dp)); });
+  g.stroke();
+  g.strokeStyle="#7c5cff"; g.lineWidth=2; g.beginPath();
+  let started=false;
+  pts.forEach(p=>{ if(!p.valid || !isFinite(p.rss)){ started=false; return; }
+    const yy=Math.max(m.t, Y2(Math.min(p.rss,rssMax)));
+    if(!started){ g.moveTo(X(p.x),yy); started=true; } else g.lineTo(X(p.x),yy); });
+  g.stroke(); g.restore();
+  vline(ax,base[curTag]!==undefined?base[curTag]:0,"#e6edf3",curLabel);
+  g.fillStyle="#6b7885"; g.font="10px ui-monospace,Menlo,monospace";
+  g.textAlign="right"; g.textBaseline="bottom"; g.fillText(xLabel, w-m.r, h-4);
+  return {ax, valid, xlo, xhi};
+}
+
+function drawSweep(s){
+  const cv=document.getElementById("c3");
+  const cLo=Math.max(s.p.cB+0.0025, 0.0025), cHi=0.25;
+  const r=drawSweepChart(cv,cLo,cHi,s.p,c=>({cA:c}),"c_A","cA","current c_A");
+  const noteEl=document.getElementById("sweepNote");
+  if(!r){ noteEl.textContent=""; return; }
+  // Sweet-spot cap (00_theory_dashboard_desk_view.md §5.1): D_peak(c) is a
+  // price x quantity curve; mark its interior max, or say when the true
+  // optimum has moved past this window so the shape isn't misread as flat.
+  const {ax,valid,xhi}=r;
+  let best=valid[0];
+  valid.forEach(p=>{ if(p.dp>best.dp) best=p; });
+  const atEdge = best.x > xhi-1e-9;
+  if(!atEdge){
+    marker(ax,best.x,best.dp,"#48d18d",
+      "sweet-spot cap "+(100*best.x).toFixed(1)+"% → D_peak "+(100*best.dp).toFixed(2)+"%");
+    noteEl.innerHTML = `sweet-spot cap at c_A = <b>${(100*best.x).toFixed(1)}%</b> (D<sub>peak</sub> = `+
+      `${(100*best.dp).toFixed(2)}%) — the OTM premium's elasticity to the strike hits −1 there `+
+      `(marginal-revenue-style optimum). Push the strike out further than that and f_B shrinks `+
+      `faster than the wider gap helps.`;
+  } else {
+    noteEl.innerHTML = `D<sub>peak</sub> is still rising at the right edge (25% OTM) — the true optimum `+
+      `has moved past this window. That happens once tenor exceeds roughly <b>5.5 months</b> at this `+
+      `vol level: longer-dated OTM premium decays more slowly with the strike, so the elasticity that `+
+      `marks the peak isn't reached inside a practical cap range. The curve you see is real and concave, `+
+      `just not the full hump.`;
+  }
+}
+
+function drawTenorSweep(s){
+  const cv=document.getElementById("c5");
+  drawSweepChart(cv,1,24,s.p,m=>({tau:m}),"tenor (months)","tau","current τ",
+    t=>t.toFixed(0));
+}
+
+/* ---------- term grid: strike × tenor ---------------------------------- */
+const GRID_CAPS=[0,0.025,0.05,0.075,0.10,0.15,0.20];
+const GRID_TENORS=[1,2,3,6,9,12];
+const GRID_QTY={
+  prem   : c => (100*c.yA).toFixed(2)+"%",
+  premUsd: c => fmtMoney(c.yA*NOTIONAL),
+  prob   : c => (100*c.probA).toFixed(1)+"%",
+  qval   : c => (100*c.ytA).toFixed(2)+"%",
+  fB     : c => c.fB.toFixed(3),
+  rss    : c => isFinite(c.rss) ? (100*c.rss).toFixed(1)+"%" : "n/a",
+  dpeak  : c => (100*c.Dpeak).toFixed(2)+"%"
+};
+function drawGrid(s){
+  const sel=document.getElementById("gridQty");
+  const q=GRID_QTY[sel.value] || GRID_QTY.prem;
+  const head="<thead><tr><th>cap ↓ / tenor →</th>"
+    +GRID_TENORS.map(t=>`<th>${t}M</th>`).join("")+"</tr></thead>";
+  const rows=GRID_CAPS.map(cap=>{
+    const cells=GRID_TENORS.map(mo=>{
+      const t=solve(Object.assign({},s.p,{cA:cap,tau:mo}));
+      if(!t.valid) return `<td class="na">—</td>`;
+      return `<td>${q(t)}</td>`;
+    }).join("");
+    const lab=cap===0?"ATM":"+"+(100*cap).toFixed(1)+"%";
+    const cur=Math.abs(cap-s.p.cA)<1e-12?' style="color:var(--a)"':"";
+    return `<tr><td${cur}>${lab}</td>${cells}</tr>`;
+  }).join("");
+  document.getElementById("grid").innerHTML=head+"<tbody>"+rows+"</tbody>";
+  document.getElementById("gridNote").textContent=
+    `anchor c_B = ${(100*s.p.cB).toFixed(2)}%${s.p.cB===0?" (ATM)":""}, f_A = ${s.p.fA.toFixed(2)}`+
+    ` · notional ${fmtMoney(NOTIONAL)} (full overwrite for $ cells)`+
+    ` · smile: σ_ATM ${(100*s.p.sig).toFixed(1)}%, wing ${(s.p.wing>=0?"+":"")+(100*s.p.wing).toFixed(1)} vol/5%`+
+    ` · carry: r_f ${(100*s.p.rf).toFixed(2)}%, q ${(100*s.p.q).toFixed(2)}%, borrow ${(100*s.p.bor).toFixed(2)}%`;
+}
+
+/* ---------- readouts -------------------------------------------------- */
+function fmtOr(v,f){ return isFinite(v) ? f(v) : "n/a"; }
+
+function drawInvalidCanvas(cv,message){
+  const {g,w,h}=setupCanvas(cv);
+  g.fillStyle="#ff6b6b"; g.font="12px ui-monospace,Menlo,monospace";
+  g.textAlign="center"; g.textBaseline="middle";
+  g.fillText("INVALID — "+message,w/2,h/2);
+}
+
+function drawInvalid(s){
+  const el=document.getElementById("verdict");
+  el.className="verdict invalid";
+  el.textContent="INVALID — "+s.error;
+  const details=[
+    ["status","INVALID",s.error],
+    ["raw σ_A",fmtOr(s.sigA,v=>(100*v).toFixed(4)+"%"),"must be > MIN_VOL"],
+    ["raw σ_B",fmtOr(s.sigB,v=>(100*v).toFixed(4)+"%"),"must be > MIN_VOL"],
+    ["f_B",fmtOr(s.fB,v=>v.toFixed(6)),"must be within [0,1] and ordered"],
+  ];
+  document.getElementById("cards").innerHTML=details.map(([k,v,h])=>
+    `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`
+  ).join("");
+  document.getElementById("skewNote").textContent =
+    "Invalid parameter combination. q is used only for option pricing; the toy period-dividend proxy is dq = exp(q·τ) − 1.";
+  drawInvalidCanvas(document.getElementById("c1"),"returns suppressed");
+  drawInvalidCanvas(document.getElementById("c2"),"peak and r** suppressed");
+  drawInvalidCanvas(document.getElementById("c3"),"sweep suppressed");
+  drawInvalidCanvas(document.getElementById("c5"),"sweep suppressed");
+  document.getElementById("sweepNote").textContent = "";
+  document.getElementById("tbl").innerHTML =
+    `<tbody><tr><td style="color:var(--warn)">INVALID</td><td>${s.error}</td></tr></tbody>`;
+  document.getElementById("grid").innerHTML =
+    `<tbody><tr><td style="color:var(--warn)">INVALID</td><td>${s.error}</td></tr></tbody>`;
+  document.getElementById("gridNote").textContent = "invalid parameters — term grid suppressed";
+  document.getElementById("checks").textContent =
+    "invalid parameters — no return, peak, or crossover curves were drawn";
+}
+
+function drawCards(s){
+  const pct2=v=>(100*v).toFixed(2)+"%";
+  const cards=[
+    ["f_B",            s.fB.toFixed(4),            "equal-premium solve"],
+    ["y_A",            pct2(s.yA),                 "σ_IV = "+(100*s.sigA).toFixed(2)+"%"],
+    ["y_B",            pct2(s.yB),                 "σ_IV = "+(100*s.sigB).toFixed(2)+"%"],
+    ["D peak",         pct2(s.Dpeak),              "A's max edge, at r = "+(100*s.p.cA).toFixed(2)+"%"],
+    ["r**",            fmtOr(s.rss,pct2),          "B takes over above this"],
+    ["slope 1−f_B",    s.slopeB.toFixed(4),        "B's uncapped upside"],
+    ["A ceiling",      fmtOr(s.ceilA,pct2),        "c_A + ỹ_A (f_A = 1 only)"],
+    ["r* vs B&H",      pct2(s.rstarA),             "independent of f_A"],
+    ["P(A called)",    pct2(s.probA),              "Q, smile-consistent · N(d2) "+pct2(s.probBsA)],
+    ["P(B called)",    pct2(s.probB),              "Q, smile-consistent · N(d2) "+pct2(s.probBsB)],
+    ["premium $ total", fmtMoney(s.p.fA*s.yA*NOTIONAL), "both legs equal · on "+fmtMoney(NOTIONAL)+" notional"]
+  ];
+  document.getElementById("cards").innerHTML = cards.map(([k,v,hh])=>
+    `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${hh}</div></div>`
+  ).join("");
+}
+
+function drawTable(s){
+  const pg=(f,g)=>({
+    delta: 1-f*g.delta, gamma:-f*g.gamma, vega:-f*g.vega/100,
+    theta:-f*g.theta/365, rho:-f*g.rho/100
+  });
+  const A=pg(s.p.fA,s.gA), B=pg(s.fB,s.gB);
+  const r4=v=>v.toFixed(4), r3=v=>v.toFixed(3);
+  const CONTRACT=100;                                 // shares per contract
+  const shares=NOTIONAL/s.p.S0;                       // degree-1 homogeneity
+  const ctr=f=>(f*shares/CONTRACT).toLocaleString("en-US",{maximumFractionDigits:1});
+  // Per-contract premium ($ per 100 shares, quoted at S0) does NOT depend on
+  // notional -- it's the actual desk quote. Total premium $ below is that
+  // quote times how many contracts this notional needs; it's the one number
+  // on the page that moves with the Trade size slider, which is why it can
+  // look large -- see the footnote.
+  const perCtr=y=>fmtMoney(y*s.p.S0*CONTRACT);
+  document.getElementById("tbl").innerHTML = `
+    <thead><tr><th></th><th>notional f</th><th>strike K</th><th>σ_IV</th>
+      <th>premium /S₀</th><th>ỹ = premium·e^{r_f τ}</th><th>$/contract</th><th>P(called)</th>
+      <th>contracts (100sh)</th><th>premium $ (total)</th>
+      <th>Δ</th><th>Γ</th><th>ν /vol pt</th><th>Θ /day</th><th>ρ /1%</th></tr></thead>
+    <tbody>
+    <tr><td style="color:var(--a)">A &nbsp;f_A @ c_A = ${(100*s.p.cA).toFixed(2)}% OTM</td>
+      <td>${s.p.fA.toFixed(3)}</td><td>${s.KA.toFixed(2)}</td>
+      <td>${(100*s.sigA).toFixed(2)}%</td><td>${(100*s.yA).toFixed(4)}%</td>
+      <td>${(100*s.ytA).toFixed(4)}%</td><td>${perCtr(s.yA)}</td><td>${(100*s.probA).toFixed(1)}%</td>
+      <td>${ctr(s.p.fA)}</td><td>${fmtMoney(s.p.fA*s.yA*NOTIONAL)}</td>
+      <td>${r4(A.delta)}</td><td>${A.gamma.toExponential(2)}</td>
+      <td>${r4(A.vega)}</td><td>${r4(A.theta)}</td><td>${r3(A.rho)}</td></tr>
+    <tr><td style="color:var(--b)">B &nbsp;f_B @ c_B = ${(100*s.p.cB).toFixed(2)}%${s.p.cB===0?" (ATM)":""}</td>
+      <td>${s.fB.toFixed(3)}</td><td>${s.KB.toFixed(2)}</td>
+      <td>${(100*s.sigB).toFixed(2)}%</td><td>${(100*s.yB).toFixed(4)}%</td>
+      <td>${(100*s.ytB).toFixed(4)}%</td><td>${perCtr(s.yB)}</td><td>${(100*s.probB).toFixed(1)}%</td>
+      <td>${ctr(s.fB)}</td><td>${fmtMoney(s.fB*s.yB*NOTIONAL)}</td>
+      <td>${r4(B.delta)}</td><td>${B.gamma.toExponential(2)}</td>
+      <td>${r4(B.vega)}</td><td>${r4(B.theta)}</td><td>${r3(B.rho)}</td></tr>
+    </tbody>
+    <tfoot><tr><td colspan="14" style="text-align:left; color:var(--ink3); font-size:10px; padding-top:6px; border-bottom:none">
+      1 contract = ${CONTRACT} shares. <b>$/contract</b> is the quote (S₀, σ_IV, τ only) — it does
+      not move with the notional slider. <b>Contracts</b> and <b>premium $ (total)</b> scale with
+      notional (currently ${fmtMoney(NOTIONAL)}); that's the only reason the total premium can look large.
+    </td></tr></tfoot>`;
+
+  // self-checks, mirroring the Python module
+  const pm=Math.abs(s.p.fA*s.ytA - s.fB*s.ytB);
+  let worst=0;
+  for(let i=0;i<=2000;i++){ const r=-0.5+1.5*i/2000;
+    worst=Math.max(worst, Math.abs((s.RA(r)-s.RB(r))-s.D(r))); }
+  const dss=isFinite(s.rss)?Math.abs(s.D(s.rss)):0;
+  const ok=(v,t)=>`<b class="${v<t?"":"bad"}">${v.toExponential(1)}</b>`;
+  document.getElementById("checks").innerHTML =
+    `self-check &nbsp; premium match residual ${ok(pm,1e-12)} &nbsp;·&nbsp; `+
+    `max|R_A−R_B−D(r)| ${ok(worst,1e-12)} &nbsp;·&nbsp; |D(r**)| ${ok(dss,1e-10)} `+
+    `&nbsp;·&nbsp; period dividend ${(100*s.dq).toFixed(3)}% `+
+    `(toy proxy exp(q·τ)−1 unless an actual dividend_return is supplied; cancels in D)`;
+}
+
+function drawSkewNote(s){
+  const volPts = 100*(s.sigA - s.p.sig);
+  const perFive = 100*s.p.wing;
+  document.getElementById("skewNote").innerHTML =
+    `σ_IV(c) = σ_ATM + wing·(c/5%). In BS, wing = 0 (flat). At c_A = ${(100*s.p.cA).toFixed(2)}% that is `+
+    `<b>${volPts>=0?"+":""}${volPts.toFixed(2)} vol pts</b> vs ATM `+
+    `(slider = ${perFive>=0?"+":""}${perFive.toFixed(1)} vol / 5% OTM). `+
+    `wing &gt; 0 (upward call wing) raises y_A → raises f_B → <b>helps A</b>; wing &lt; 0 helps B. `+
+    `Toy linear tilt — not an SVI surface. `+
+    `Feasible here: <b>${(100*WING_RANGE[0]).toFixed(1)} … ${(100*WING_RANGE[1]).toFixed(1)} vol</b> `+
+    `(σ_IV &gt; 0 below, vertical-spread no-arb above); the slider clamps to this range.`;
+}
+
+function drawVerdict(s){
+  const el=document.getElementById("verdict");
+  el.className="verdict";
+  if(Math.abs(s.p.cA-s.p.cB)<1e-12 && Math.abs(s.p.fA-s.fB)<1e-12){
+    el.textContent="A and B are identical under these parameters."; return;
+  }
+  if(!isFinite(s.rss)){ el.innerHTML="f_B ≥ f_A — no crossover (B is not the uncapped leg here)"; return; }
+  el.innerHTML = `A leads on [${(100*s.p.cB).toFixed(1)}%, ${(100*s.rss).toFixed(2)}%], `+
+                 `max +${(100*s.Dpeak).toFixed(2)}% &nbsp;|&nbsp; B leads above ${(100*s.rss).toFixed(2)}%, unbounded`;
+}
+
+/* ---------- render ---------------------------------------------------- */
+function render(){
+  const s=solve(P);
+  if(!s.valid){ drawInvalid(s); return; }
+  drawVerdict(s); drawCards(s); drawSkewNote(s);
+  drawReturns(s); drawD(s); drawSweep(s); drawTenorSweep(s); drawTable(s); drawGrid(s);
+}
+
+/* ---------- keep slider-reachable states feasible ----------------------
+   Caps stay ordered (dragging c_A below c_B pulls c_B along; pushing c_B
+   above c_A clamps it), and the wing is clamped to its feasible domain,
+   which moves with σ_ATM, the caps, tenor and carry. The INVALID branch
+   below stays as defence in depth, but no slider position reaches it. */
+function normalize(){
+  if(P.cB > P.cA) P.cB = P.cA;   // one rule covers both directions:
+                                 // dragging c_A down pulls c_B along,
+                                 // pushing c_B up stops at c_A
+  const r=wingRange(P);
+  WING_RANGE[0]=r[0]; WING_RANGE[1]=r[1];
+  P.wing=Math.min(Math.max(P.wing,r[0]),r[1]);
+}
+
+/* ---------- build sliders -------------------------------------------- */
+document.querySelectorAll("[data-slider]").forEach(row=>{
+  const key=row.dataset.slider, fmt=FMT[row.dataset.fmt];
+  row.innerHTML =
+    `<div class="lab"><span>${LABEL[key]}</span><output></output></div>`+
+    `<input type="range" min="${row.dataset.min}" max="${row.dataset.max}" `+
+    `step="${row.dataset.step}" value="${P[key]}">`;
+  const inp=row.querySelector("input"), out=row.querySelector("output");
+  const sync=()=>{
+    if(key==="wing"){ inp.min=WING_RANGE[0]; inp.max=WING_RANGE[1]; }
+    if(key==="cB"){ inp.max=Math.min(parseFloat(row.dataset.max), P.cA); }
+    out.textContent=fmt(P[key]); inp.value=P[key];
+  };
+  inp.addEventListener("input",()=>{
+    const v=parseFloat(inp.value);
+    if(isFinite(v)) P[key]=v;
+    normalize(); syncAll(); render();
+  });
+  row._sync=sync; sync();
+});
+const syncAll = () => document.querySelectorAll("[data-slider]").forEach(r=>r._sync());
+
+const notionalInp=document.getElementById("notional");
+const syncNotional=()=>{
+  NOTIONAL=parseNotional(notionalInp.value);
+  document.getElementById("notionalOut").textContent=fmtMoney(NOTIONAL);
+};
+notionalInp.addEventListener("input",()=>{ syncNotional(); render(); });
+notionalInp.addEventListener("change",()=>{ notionalInp.value=Math.round(NOTIONAL).toLocaleString("en-US"); });
+syncNotional();
+
+document.getElementById("gridQty").addEventListener("change",render);
+
+document.getElementById("showExcess").addEventListener("change",render);
+document.getElementById("showMarks").addEventListener("change",render);
+window.addEventListener("resize",render);
+
+normalize(); syncAll(); render();
+</script>
+</body>
+</html>

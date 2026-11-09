@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Covered Call A vs B — Call Yield、f_B、flat σ 比较静态</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '\\\\[', right: '\\\\]', display: true},
+        {left: '$', right: '$', display: false},
+        {left: '\\\\(', right: '\\\\)', display: false}
+      ],
+      throwOnError: false
+    });"></script>
+  <style>
+    :root {
+      --bg: #f7f6f2;
+      --ink: #1c1b19;
+      --muted: #5c574f;
+      --line: #ddd8ce;
+      --card: #ffffff;
+      --accent: #1f4b3a;
+      --accent-soft: #e7f0eb;
+      --warn: #6b3f12;
+      --warn-bg: #f6ead8;
+      --mono: "SF Mono", "Menlo", "Consolas", monospace;
+      --sans: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+      --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--ui);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    .wrap {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 820px);
+      gap: 28px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 20px 64px;
+    }
+    nav {
+      position: sticky;
+      top: 20px;
+      align-self: start;
+      font-size: 13px;
+    }
+    nav .brand {
+      font-weight: 650;
+      color: var(--accent);
+      margin-bottom: 12px;
+      letter-spacing: 0.02em;
+    }
+    nav a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 4px 0;
+      border-left: 2px solid transparent;
+      padding-left: 10px;
+    }
+    nav a:hover { color: var(--ink); border-left-color: var(--accent); }
+    main { min-width: 0; }
+    header.hero {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 22px 24px;
+      margin-bottom: 18px;
+    }
+    header.hero h1 {
+      margin: 0 0 8px;
+      font-family: var(--sans);
+      font-size: 26px;
+      font-weight: 650;
+      line-height: 1.25;
+      color: var(--accent);
+    }
+    header.hero .sub {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin: 0;
+    }
+    .note, .callout {
+      border: 1px solid var(--line);
+      background: var(--accent-soft);
+      padding: 12px 14px;
+      margin: 14px 0;
+      color: var(--ink);
+    }
+    .callout.warn {
+      background: var(--warn-bg);
+      color: var(--warn);
+    }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 20px 22px 8px;
+      margin-bottom: 14px;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-family: var(--sans);
+      color: var(--accent);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+    h3 {
+      margin: 18px 0 8px;
+      font-size: 15px;
+      font-weight: 650;
+    }
+    p { margin: 0 0 12px; }
+    ul, ol { margin: 0 0 12px; padding-left: 1.25em; }
+    li { margin-bottom: 4px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 14px;
+      font-size: 13.5px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0eee8; font-weight: 650; }
+    .eq {
+      overflow-x: auto;
+      margin: 10px 0 14px;
+      padding: 10px 12px;
+      background: #faf9f6;
+      border: 1px solid var(--line);
+    }
+    .eq.boxed {
+      border-color: var(--accent);
+      background: #f2f7f4;
+    }
+    .katex-display { margin: 0.4em 0 !important; }
+    code {
+      font-family: var(--mono);
+      font-size: 0.9em;
+      background: #f0eee8;
+      padding: 1px 5px;
+    }
+    .quiz {
+      background: var(--accent);
+      color: #f5f8f6;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+    .quiz h2 { color: #f5f8f6; border-bottom-color: rgba(255,255,255,0.25); }
+    .quiz ol { margin-bottom: 0; }
+    footer {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    @media (max-width: 860px) {
+      .wrap { grid-template-columns: 1fr; }
+      nav { position: static; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+      nav a { border-left: none; padding-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <div class="brand">Theory notes</div>
+      <a href="#s0">0 · 结构设定</a>
+      <a href="#s1">1 · 符号</a>
+      <a href="#s2">2 · Call Yield</a>
+      <a href="#s3">3 · Premium-match / f<sub>B</sub></a>
+      <a href="#s4">4 · 差额 D(r)</a>
+      <a href="#s5">5 · Flat σ 比较静态</a>
+      <a href="#s6">6 · 别跟扫 c<sub>A</sub> 混</a>
+      <a href="#s7">7 · 边界 / skew</a>
+      <a href="#s8">8 · 小考三句</a>
+      <a href="#s9">9 · 待细化</a>
+    </nav>
+
+    <main>
+      <header class="hero">
+        <h1>Covered Call A vs B — Call Yield、$f_B$、flat $\sigma$ 比较静态</h1>
+        <p class="sub">
+          符号对齐 <code>00_theory_derivation.pdf</code> · 图示对齐 <code>00_theory_A_vs_B_en.png</code><br />
+          范围：只讨论 flat $\sigma_{IV}$（ATM / OTM 共用同一条 IV）。Skew 不在本文。
+        </p>
+      </header>
+
+      <div class="callout warn">
+        <strong>边界：</strong>本文假设 $\sigma_{\mathrm{ATM}}=\sigma_{\mathrm{OTM}}=\sigma_{IV}$。
+        Anchor IV ≠ OTM IV、call skew 等下一节再开。这里的 $k=K/S_0$ 是 strike 倍数，不是 skew。
+      </div>
+
+      <section id="s0">
+        <h2>0. 结构设定（报幕）</h2>
+        <table>
+          <thead>
+            <tr><th>结构</th><th>含义</th><th>典型 toy</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>A</strong></td>
+              <td>full overwrite，<strong>OTM</strong></td>
+              <td>$f_A=1$，$c_A=5\%$（$k_A=1.05$）</td>
+            </tr>
+            <tr>
+              <td><strong>B</strong></td>
+              <td>partial overwrite，<strong>ATM</strong></td>
+              <td>$c_B=0$（$k_B=1$），$f_B$ 由 premium-match 决定</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>约定（与文档一致）：</p>
+        <div class="eq">$$c_A > c_B$$</div>
+        <p>Toy 公共参数（flat smile）：</p>
+        <div class="eq">$$\sigma_{IV}=45\%,\quad \tau=1/12,\quad r_f=4\%,\quad q=0$$</div>
+      </section>
+
+      <section id="s1">
+        <h2>1. 符号（只用文档里的）</h2>
+        <table>
+          <thead><tr><th>符号</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td>$S_0,\,S_T$</td><td>期初 / 到期 spot</td></tr>
+            <tr><td>$R=S_T/S_0$</td><td>gross price return</td></tr>
+            <tr><td>$r=R-1$</td><td>net price return</td></tr>
+            <tr><td>$K$</td><td>strike</td></tr>
+            <tr><td>$k=K/S_0$</td><td>strike 相对 spot</td></tr>
+            <tr><td>$c=k-1$</td><td>cap；OTM $c&gt;0$，ATM $c=0$</td></tr>
+            <tr><td>$y(c)$</td><td><strong>Call Yield</strong></td></tr>
+            <tr><td>$\tilde{y}=y\,e^{r_f\tau}$</td><td>权利金持有到 $T$ 后的有效率</td></tr>
+            <tr><td>$f\in[0,1]$</td><td>overwrite ratio</td></tr>
+            <tr><td>$Y=f\,y(c)$</td><td>组合层面实际收到的 premium rate</td></tr>
+            <tr><td>$\sigma_{IV}$</td><td>implied vol（本文对所有 strike 相同）</td></tr>
+            <tr><td>$\tau,\,r_f,\,q$</td><td>期限、无风险利率、股息率</td></tr>
+          </tbody>
+        </table>
+        <p>单期收益（文档 (1a)(1b)）：</p>
+        <div class="eq">
+          $$
+          R_{cc}
+          = r + q + f\,\tilde{y} - f\,(r-c)^+
+          = (1-f)\,r + f\bigl[\min(r,c)+\tilde{y}\bigr] + q
+          $$
+        </div>
+        <ul>
+          <li>$f=1$：有硬 cap，$r&gt;c$ 后封顶在 $c+\tilde{y}$</li>
+          <li>$f&lt;1$：无硬 cap，$r&gt;c$ 后斜率仍为 $1-f&gt;0$（B 在大涨里继续吃 upside 的来源）</li>
+        </ul>
+      </section>
+
+      <section id="s2">
+        <h2>2. Call Yield 的定义</h2>
+        <div class="eq boxed">
+          $$y(c)=\frac{C_0}{S_0}$$
+        </div>
+        <p>
+          <strong>每覆盖 1 单位标的、在该 strike 上卖出 1 份 call 所收到的权利金 / 期初 spot。</strong>
+          这就是 Call Yield；不是组合层面的 $Y$。
+        </p>
+        <p>组合实际收到：</p>
+        <div class="eq">$$Y=f\,y(c)$$</div>
+        <p>Black–Scholes（$S_0=1$ 时 $y$ 就是 call 价格本身）：</p>
+        <div class="eq">
+          $$y(k)=e^{-q\tau}N(d_1)-k\,e^{-r_f\tau}N(d_2)$$
+        </div>
+        <div class="eq">
+          $$
+          d_1=\frac{-\ln k+\bigl(r_f-q+\tfrac12\sigma_{IV}^2\bigr)\tau}{\sigma_{IV}\sqrt{\tau}},
+          \qquad
+          d_2=d_1-\sigma_{IV}\sqrt{\tau}
+          $$
+        </div>
+        <p>其中 $k=1+c$。Toy（flat $45\%$，1M）：</p>
+        <div class="eq">
+          $$y(c_A)=y(5\%)=3.294550\%,\qquad y(0)\approx 5.338\%$$
+        </div>
+      </section>
+
+      <section id="s3">
+        <h2>3. Premium-match 与 $f_B$</h2>
+        <p>Uday 口径：两个结构的<strong>组合 premium rate</strong>相同</p>
+        <div class="eq">$$f_A\,y(c_A)=f_B\,y(c_B)$$</div>
+        <p>主设定 $f_A=1$，$c_B=0$：</p>
+        <div class="eq boxed">
+          $$f_B=\frac{y(c_A)}{y(0)}=\frac{y_{\mathrm{OTM}}}{y_{\mathrm{ATM}}}$$
+        </div>
+        <p>Toy：</p>
+        <div class="eq">$$f_B=\frac{3.294550\%}{5.338\%}\approx 0.617$$</div>
+        <ul>
+          <li>$f_B$ <strong>就是两个 call yield 的比值</strong></li>
+          <li>strike / vol / $\tau$ / $r_f$ 都通过 $y(\cdot)$ 进入 $f_B$，再进入 $D(r)$</li>
+        </ul>
+        <p>Premium-match 后（共用同一 $e^{r_f\tau}$）：</p>
+        <div class="eq">$$f_A\tilde{y}_A=f_B\tilde{y}_B$$</div>
+      </section>
+
+      <section id="s4">
+        <h2>4. 差额 $D(r)$（几何由 $c,f$ 决定）</h2>
+        <div class="eq boxed">
+          $$D(r)\equiv R_A-R_B=f_B\,(r-c_B)^+-f_A\,(r-c_A)^+$$
+        </div>
+        <p>零成本 ratio call spread：多 $f_B$ 份在 $c_B$，空 $f_A$ 份在 $c_A$。</p>
+        <table>
+          <thead><tr><th>区域</th><th>$D(r)$</th><th>斜率</th></tr></thead>
+          <tbody>
+            <tr><td>$r\le c_B$</td><td>$0$</td><td>$0$</td></tr>
+            <tr><td>$c_B&lt;r\le c_A$</td><td>$f_B(r-c_B)$</td><td>$+f_B$</td></tr>
+            <tr><td>$r&gt;c_A$</td><td>$f_B(r-c_B)-f_A(r-c_A)$</td><td>$-(f_A-f_B)$</td></tr>
+          </tbody>
+        </table>
+        <p>峰在 $r=c_A$（式 4a）：</p>
+        <div class="eq boxed">$$D(c_A)=f_B\,(c_A-c_B)$$</div>
+        <p>再穿零 $r^{**}$（式 4）：</p>
+        <div class="eq boxed">$$r^{**}=\frac{f_A c_A-f_B c_B}{f_A-f_B}$$</div>
+        <p>特例 $f_A=1$，$c_B=0$：</p>
+        <div class="eq">$$D(c_A)=f_B\,c_A,\qquad r^{**}=\frac{c_A}{1-f_B}$$</div>
+        <p>Toy（$c_A=5\%$，$f_B=0.617$）：$D(c_A)=3.09\%$，$r^{**}=13.06\%$。</p>
+        <div class="note">
+          $f_A&gt;f_B$ 时，在 $c_A$ 以上净空 call —— A 的优势有顶，B 在大涨里无顶。
+        </div>
+      </section>
+
+      <section id="s5">
+        <h2>5. Flat $\sigma_{IV}$ 的比较静态（核心）</h2>
+
+        <h3>5.1 什么在动、什么不动</h3>
+        <p>固定 $c_A,c_B,f_A,\tau,r_f,q$，只动<strong>同一条</strong> $\sigma_{IV}$。</p>
+        <ul>
+          <li>$c_A,c_B$ 不变 → $D$ 的<strong>折点位置</strong>不变</li>
+          <li>$y(c_A;\sigma)$、$y(0;\sigma)$ 变 → $f_B(\sigma)$ 变 → $D$ 的<strong>高度与部分斜率</strong>变</li>
+        </ul>
+        <div class="eq">
+          $$
+          \sigma
+          \;\longrightarrow\;
+          \bigl(y(c_A),\,y(0)\bigr)
+          \;\longrightarrow\;
+          f_B=\frac{y(c_A)}{y(0)}
+          \;\longrightarrow\;
+          \bigl(D(c_A),\,r^{**},\,\text{斜率}\bigr)
+          $$
+        </div>
+
+        <h3>5.2 Yield 对 $\sigma$ 的导数（vega / $S_0$）</h3>
+        <p>普通 BS call vega：</p>
+        <div class="eq">$$\frac{\partial C_0}{\partial\sigma}=S_0\,e^{-q\tau}\,n(d_1)\,\sqrt{\tau}$$</div>
+        <p>对 Call Yield：</p>
+        <div class="eq boxed">
+          $$\nu(c)\equiv\frac{\partial y(c)}{\partial\sigma}=e^{-q\tau}\,n\bigl(d_1(c)\bigr)\,\sqrt{\tau}$$
+        </div>
+        <div class="eq">
+          $$y_A=y(c_A),\quad y_B=y(0),\qquad \nu_A=\nu(c_A),\quad \nu_B=\nu(0)$$
+        </div>
+
+        <h3>5.3 $f_B$ 对 $\sigma$ 的导数</h3>
+        <div class="eq">$$f_B=\frac{y_A}{y_B}$$</div>
+        <div class="eq boxed">
+          $$\frac{\partial\log f_B}{\partial\sigma}=\frac{\nu_A}{y_A}-\frac{\nu_B}{y_B}$$
+        </div>
+        <div class="eq boxed">
+          $$\frac{\partial f_B}{\partial\sigma}=f_B\left(\frac{\nu_A}{y_A}-\frac{\nu_B}{y_B}\right)$$
+        </div>
+        <ul>
+          <li>比的不是绝对 vega $\nu$，而是 <strong>yield 弹性</strong> $\nu/y$</li>
+          <li>$\nu_A/y_A &gt; \nu_B/y_B$ ⇒ $\partial f_B/\partial\sigma &gt; 0$</li>
+          <li>本设定（A=OTM，B=ATM）：低 σ 时 OTM 相对更「干」；σ 抬高后 OTM 相对补回 ⇒ <strong>通常 $f_B$ 随 $\sigma$ 上升</strong></li>
+        </ul>
+
+        <h3>5.4 对 $D$ 的后果（$c_B=0,\,f_A=1$）</h3>
+        <div class="eq">$$D(c_A)=f_B\,c_A,\qquad r^{**}=\frac{c_A}{1-f_B}$$</div>
+        <table>
+          <thead><tr><th>flat $\sigma_{IV}\uparrow$</th><th>后果</th></tr></thead>
+          <tbody>
+            <tr><td>$f_B\uparrow$</td><td>要 match 更贵的 OTM premium，ATM 侧覆盖比例升高</td></tr>
+            <tr><td>中间段斜率 $+f_B$</td><td>更陡</td></tr>
+            <tr><td>峰高 $D(c_A)=f_B c_A$</td><td><strong>升高</strong></td></tr>
+            <tr><td>$r^{**}=c_A/(1-f_B)$</td><td><strong>右移</strong>（B 更晚才反超）</td></tr>
+            <tr><td>高段斜率 $-(1-f_B)$</td><td>绝对值变小（B 残余 upside 变薄）</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>一句话：</strong>Flat σ 抬高 ⇒ OTM 相对 ATM 不那么「白送」⇒ $f_B$ 变大 ⇒ A 相对 B 的优势区又高又往右拖。
+        </div>
+        <div class="eq">
+          $$
+          \frac{\partial D(c_A)}{\partial\sigma}
+          =c_A\frac{\partial f_B}{\partial\sigma}
+          =c_A f_B\left(\frac{\nu_A}{y_A}-\frac{\nu_B}{y_B}\right)
+          $$
+        </div>
+        <div class="eq">
+          $$
+          \frac{\partial r^{**}}{\partial\sigma}
+          =\frac{c_A}{(1-f_B)^2}\,\frac{\partial f_B}{\partial\sigma}
+          $$
+        </div>
+        <p>与 $\partial f_B/\partial\sigma$ <strong>同号</strong>。</p>
+      </section>
+
+      <section id="s6">
+        <h2>6. 和「扫 $c_A$」实验的区别</h2>
+        <p>图 (3)「Pushing A's strike further out」动的是 <strong>$c_A$</strong>，不是 $\sigma$：</p>
+        <ul>
+          <li>$c_A\uparrow$ ⇒ $y(c_A)\downarrow$ ⇒ $f_B=y(c_A)/y(0)\downarrow$</li>
+          <li>同时峰的横轴位置 $c_A$ 右移；$r^{**}$ 也右移</li>
+        </ul>
+        <p>那是 <strong>strike 比较静态</strong>。本文是 <strong>vol 比较静态</strong>。两条都进 $f_B$，别混成一个故事。</p>
+      </section>
+
+      <section id="s7">
+        <h2>7. 本文边界（下一节）</h2>
+        <div class="eq">$$\sigma_{\mathrm{ATM}}=\sigma_{\mathrm{OTM}}=\sigma_{IV}\quad\text{（flat）}$$</div>
+        <p><strong>尚未引入：</strong>anchor ≠ OTM IV、ATM ≠ OTM IV（call skew）、$\sigma(c)=\sigma_0\cdot\kappa(c)$。</p>
+        <p>那些会变成：</p>
+        <div class="eq">$$f_B=\frac{y(c_A;\sigma_A)}{y(0;\sigma_B)}$$</div>
+        <p>再对 $\sigma_0$、$\kappa$ 分别做比较静态——单独开文档。</p>
+      </section>
+
+      <div class="quiz" id="s8">
+        <h2>8. 小考用三句话</h2>
+        <ol>
+          <li>$y(c)=C_0/S_0$；premium-match 且 $f_A=1,c_B=0$ 时 $f_B=y(c_A)/y(0)$。</li>
+          <li>Flat $\sigma$ 只通过 $f_B(\sigma)$ 改 $D$；$\partial\log f_B/\partial\sigma=\nu_A/y_A-\nu_B/y_B$。</li>
+          <li>$\sigma\uparrow$ ⇒（通常）$f_B\uparrow$ ⇒ 峰 $f_B c_A$ 升高，$r^{**}=c_A/(1-f_B)$ 右移。</li>
+        </ol>
+      </div>
+
+      <section id="s9">
+        <h2>9. 待细化清单</h2>
+        <ul>
+          <li>用 toy 的 $d_1^A,d_1^B$ 数值验证 $\nu_A/y_A$ 与 $\nu_B/y_B$ 的符号</li>
+          <li>写出 $10\%\to 45\%$ 时 $f_B$ 的示意路径</li>
+          <li>$\tau$、$r_f$ 的同类比较静态</li>
+          <li>下一文档：skew（$\sigma_A\neq\sigma_B$）下的 $f_B$ 与 $D$</li>
+        </ul>
+      </section>
+
+      <footer>
+        Source: <code>00_theory_comparative_statics_sigma.md</code> · KaTeX render ·
+        对齐 <code>00_theory_derivation.pdf</code>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

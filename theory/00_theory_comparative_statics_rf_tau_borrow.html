@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Covered Call A vs B — r_f、tau、borrow 比较静态</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <style>
+    :root {
+      --bg: #f7f6f2;
+      --ink: #1c1b19;
+      --muted: #5c574f;
+      --line: #ddd8ce;
+      --card: #ffffff;
+      --accent: #1f4b3a;
+      --accent-soft: #e7f0eb;
+      --warn: #6b3f12;
+      --warn-bg: #f6ead8;
+      --mono: "SF Mono", "Menlo", "Consolas", monospace;
+      --sans: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+      --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--ui);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .wrap {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 840px);
+      gap: 28px;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 28px 20px 64px;
+    }
+    nav {
+      position: sticky;
+      top: 20px;
+      align-self: start;
+      font-size: 13px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    nav .brand {
+      font-weight: 650;
+      color: var(--accent);
+      margin-bottom: 12px;
+      letter-spacing: 0.02em;
+    }
+    nav a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 4px 0;
+      border-left: 2px solid transparent;
+      padding-left: 10px;
+      line-height: 1.3;
+    }
+    nav a:hover { color: var(--ink); border-left-color: var(--accent); }
+    nav a.lvl3 { padding-left: 20px; font-size: 12px; }
+    main { min-width: 0; }
+    header.hero {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 22px 24px;
+      margin-bottom: 18px;
+    }
+    header.hero h1 {
+      margin: 0 0 8px;
+      font-family: var(--sans);
+      font-size: 24px;
+      font-weight: 650;
+      line-height: 1.3;
+      color: var(--accent);
+    }
+    header.hero .sub {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin: 0;
+      white-space: pre-line;
+    }
+    #content { background: var(--card); border: 1px solid var(--line); padding: 20px 26px 30px; }
+    #content h2 {
+      margin: 30px 0 14px;
+      font-size: 19px;
+      font-family: var(--sans);
+      color: var(--accent);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+    #content h2:first-child { margin-top: 4px; }
+    #content h3 { margin: 20px 0 8px; font-size: 15.5px; font-weight: 650; }
+    #content p { margin: 0 0 12px; }
+    #content ul, #content ol { margin: 0 0 12px; padding-left: 1.3em; }
+    #content li { margin-bottom: 4px; }
+    #content hr { border: none; border-top: 1px solid var(--line); margin: 22px 0; }
+    #content blockquote {
+      border-left: 3px solid var(--accent);
+      background: var(--accent-soft);
+      margin: 14px 0;
+      padding: 8px 14px;
+      color: var(--ink);
+    }
+    #content blockquote p:last-child { margin-bottom: 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 16px;
+      font-size: 13.5px;
+      overflow-x: auto;
+      display: block;
+    }
+    table thead, table tbody { display: table; width: 100%; table-layout: auto; }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0eee8; font-weight: 650; }
+    #content pre {
+      overflow-x: auto;
+      background: #f0eee8;
+      padding: 10px 12px;
+      margin: 0 0 14px;
+    }
+    #content code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      background: #f0eee8;
+      padding: 1px 5px;
+    }
+    #content pre code { background: none; padding: 0; }
+    #content strong { color: #16281f; }
+    .katex-display {
+      margin: 0.6em 0 !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 0;
+    }
+    #loading { color: var(--muted); padding: 40px; text-align: center; }
+    footer {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 900px) {
+      .wrap { grid-template-columns: 1fr; }
+      nav { position: static; max-height: none; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+      nav a { border-left: none; padding-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav id="toc"><div class="brand">Theory notes</div></nav>
+    <main>
+      <header class="hero">
+        <h1>Covered Call A vs B — r<sub>f</sub>、&tau;、borrow（以及 q）的比较静态</h1>
+        <p class="sub">与 00_theory_comparative_statics_sigma.md 同一套模型的推广。逐步推导，本地 KaTeX 渲染。</p>
+      </header>
+      <div id="content"><div id="loading">渲染中…</div></div>
+      <footer>Source: <code>00_theory_comparative_statics_rf_tau_borrow.md</code> · marked.js + KaTeX，本地打开即渲染，无需网络以外的任何安装。</footer>
+    </main>
+  </div>
+
+  <script type="text/markdown" id="md-source">
+# Covered Call A vs B — $r_f$、$\tau$、borrow（以及 $q$）的比较静态
+
+> 符号与设定对齐：`00_theory_derivation.pdf`、`00_theory_comparative_statics_sigma.md`
+> 图示对齐：`AB_explorer.html` / `ab_core.py`
+> 本文范围：flat $\sigma_{IV}$ 前提下（ATM/OTM 共用同一条 IV），**$r_f$（risk-free rate）、$\tau$（tenor）、borrow $b$（回购/借券成本）** 各自单独变化时，$f_B, D(r), r^{**}$ 怎么变。
+> 承接 `00_theory_comparative_statics_sigma.md` §9 的 TODO：「$\tau$、$r_f$ 的同类比较静态」——本文补上，并顺带把 borrow（$\sigma$ 文档写成时模型里还没有这个参数）和 dividend yield $q$ 的推论一起交代。
+> **写作要求（对自己提个醒）：每一步都要能从上一步直接推出来，中间不许跳步。**
+
+---
+
+## 0. 复用设定
+
+和 `00_theory_comparative_statics_sigma.md` 完全一样的 toy，只是把 borrow $b$ 也纳入模型（`ab_core.py` 里已经有，之前那份 σ 文档写的时候还没有）：
+
+| 结构 | 含义 | 典型 toy |
+|------|------|----------|
+| **A** | full overwrite，**OTM** | $f_A = 1$，$c_A = 5\%$（$k_A=1.05$） |
+| **B** | partial overwrite，**ATM** | $c_B = 0$（$k_B=1$），$f_B$ 由 premium-match 决定 |
+
+Toy 公共参数（基准点，后面每节只动一个参数，其余按此锁死）：
+
+$$
+\sigma_{IV}=45\%,\quad \tau=\tfrac{1}{12},\quad r_f=4\%,\quad q=0,\quad b=0
+$$
+
+约定 $c_A>c_B$，$k=K/S_0$ 是 strike 倍数（不是 skew 参数）。
+
+---
+
+## 1. 符号补充
+
+在 `00_theory_comparative_statics_sigma.md` §1 的符号表基础上，只加一行：
+
+| 符号 | 含义 |
+|------|------|
+| $b$ | borrow / repo spread（做多正股的融资成本，经济上和股息 $q$ 同方向侵蚀 forward） |
+
+`ab_core.py` 里 Black–Scholes 的完整形式（比 σ 文档的公式多了一个 $b$）：
+
+$$
+y(k)=e^{-(q+b)\tau}N(d_1)-k\,e^{-r_f\tau}N(d_2)
+\tag{0a}
+$$
+
+$$
+d_1=\frac{-\ln k+\bigl(r_f-q-b+\tfrac12\sigma^2\bigr)\tau}{\sigma\sqrt\tau},
+\qquad
+d_2=d_1-\sigma\sqrt\tau
+\tag{0b}
+$$
+
+记 **carry** $ \equiv r_f-q-b$（forward $=S_0e^{\text{carry}\cdot\tau}$）。$q=0,b=0$ 时 (0a)(0b) 精确退回 σ 文档 §2 的公式，所以本文和它是同一个模型的推广，不是另开一套。
+
+premium-match、$D(r)$、$D(c_A)$、$r^{**}$ 的定义原样复用 σ 文档 §3、§4：
+
+$$
+f_B=\frac{f_A\,y(c_A)}{y(c_B)},
+\qquad
+D(c_A)=f_B(c_A-c_B),
+\qquad
+r^{**}=\frac{f_Ac_A-f_Bc_B}{f_A-f_B}
+\tag{1}
+$$
+
+toy 特例（$f_A=1,c_B=0$）：$f_B=y(c_A)/y(0)$，$D(c_A)=f_Bc_A$，$r^{**}=c_A/(1-f_B)$。
+
+---
+
+## 2. 核心引理：$N(d_1)$/$N(d_2)$ 抵消恒等式
+
+这是后面 $r_f,\tau,b,\sigma$ 四条推导都会反复用到的唯一一块"硬代数"，先一次性证明干净。
+
+**引理.**
+$$
+\boxed{\;e^{-(q+b)\tau}\,n(d_1)=k\,e^{-r_f\tau}\,n(d_2)\;}
+\tag{2a}
+$$
+其中 $n(x)=\frac{1}{\sqrt{2\pi}}e^{-x^2/2}$ 是标准正态密度。
+
+**证明（逐步）.**
+
+第 1 步——展开正态密度的平移关系。对任意 $a$：
+$$
+n(x-a)=\frac{1}{\sqrt{2\pi}}e^{-(x-a)^2/2}
+=\frac{1}{\sqrt{2\pi}}e^{-x^2/2}\cdot e^{ax-a^2/2}
+=n(x)\,e^{ax-a^2/2}
+$$
+（第二个等号只是把 $(x-a)^2=x^2-2ax+a^2$ 代进去，$-\tfrac12(x^2-2ax+a^2)+\tfrac12x^2=ax-\tfrac12a^2$。）
+
+第 2 步——取 $x=d_1,\ a=\sigma\sqrt\tau$，因为 (0b) 里 $d_2=d_1-\sigma\sqrt\tau$：
+$$
+n(d_2)=n(d_1)\,\exp\!\Bigl(\sigma\sqrt\tau\,d_1-\tfrac12\sigma^2\tau\Bigr)
+$$
+
+第 3 步——化简指数里的 $\sigma\sqrt\tau\,d_1$。由 (0b)，$d_1\,\sigma\sqrt\tau=-\ln k+(r_f-q-b+\tfrac12\sigma^2)\tau$（两边同乘 $\sigma\sqrt\tau$ 就是把 (0b) 的分母消掉）。代入：
+$$
+\sigma\sqrt\tau\,d_1-\tfrac12\sigma^2\tau
+=-\ln k+(r_f-q-b+\tfrac12\sigma^2)\tau-\tfrac12\sigma^2\tau
+=-\ln k+(r_f-q-b)\tau
+$$
+（$\tfrac12\sigma^2\tau$ 恰好抵消。）
+
+第 4 步——代回第 2 步：
+$$
+n(d_2)=n(d_1)\,\exp\bigl(-\ln k+(r_f-q-b)\tau\bigr)
+=n(d_1)\cdot\frac{1}{k}\cdot e^{(r_f-q-b)\tau}
+$$
+
+第 5 步——两边乘 $k\,e^{-r_f\tau}$：
+$$
+k\,e^{-r_f\tau}\,n(d_2)
+=n(d_1)\,e^{(r_f-q-b)\tau}\,e^{-r_f\tau}
+=n(d_1)\,e^{-(q+b)\tau}
+$$
+这正是 (2a)，证毕。$\blacksquare$
+
+**记号.** 后面统一把这个共同的量记作
+$$
+\Phi\equiv e^{-(q+b)\tau}\,n(d_1)=k\,e^{-r_f\tau}\,n(d_2)
+\tag{2b}
+$$
+
+数值核对（toy anchor，$A$: $k=1.05$；$B$: $k=1$）：
+
+| | $d_1$ | $d_2$ | $N(d_1)$ | $N(d_2)$ | $n(d_1)$ | $\Phi$ |
+|---|---|---|---|---|---|---|
+| A | $-0.284975$ | $-0.414879$ | $0.387832$ | $0.339115$ | $0.383068$ | $0.383068$ |
+| B | $0.090612$ | $-0.039292$ | $0.536100$ | $0.484329$ | $0.397308$ | $0.397308$ |
+
+（$q=b=0$ 时 $\Phi=n(d_1)$，脚本里 (2a) 两边残差 $<10^{-16}$，浮点误差级别。）
+
+### 2.1 热身：用引理重新推一遍 $\sigma$ 的结果（验证方法，顺便把 σ 文档 §9 的第一条 TODO 关掉）
+
+σ 文档 §5.2 直接写出 $\nu(c)=e^{-q\tau}n(d_1)\sqrt\tau$，没给推导。这里用引理补上，同时把它推广到含 $b$ 的版本。
+
+$y$ 对 $\sigma$ 求导，链式法则（(0a) 里两个显式 exponential 都不含 $\sigma$，所以只有 $d_1,d_2$ 这两条通道）：
+$$
+\frac{\partial y}{\partial\sigma}
+=e^{-(q+b)\tau}n(d_1)\,\frac{\partial d_1}{\partial\sigma}
+-k\,e^{-r_f\tau}n(d_2)\,\frac{\partial d_2}{\partial\sigma}
+=\Phi\left(\frac{\partial d_1}{\partial\sigma}-\frac{\partial d_2}{\partial\sigma}\right)
+\tag{2c}
+$$
+（第二个等号用了引理 (2b)，把两个系数都换成同一个 $\Phi$。）
+
+现在只需要 $\dfrac{\partial d_1}{\partial\sigma}-\dfrac{\partial d_2}{\partial\sigma}$，**不需要**把 $\partial d_1/\partial\sigma$、$\partial d_2/\partial\sigma$ 分别算出来：
+
+$$
+\frac{\partial d_1}{\partial\sigma}-\frac{\partial d_2}{\partial\sigma}
+=\frac{\partial(d_1-d_2)}{\partial\sigma}
+=\frac{\partial(\sigma\sqrt\tau)}{\partial\sigma}
+=\sqrt\tau
+\tag{2d}
+$$
+（用了 $d_2=d_1-\sigma\sqrt\tau$，即 $d_1-d_2\equiv\sigma\sqrt\tau$ 恒成立，两边对 $\sigma$ 求导就是 (2d)。）
+
+代回 (2c)：
+
+$$
+\boxed{\;
+\frac{\partial y}{\partial\sigma}=\Phi\sqrt\tau=e^{-(q+b)\tau}\,n(d_1)\,\sqrt\tau
+\;}
+\tag{2e}
+$$
+
+$q=b=0$ 时精确退回 σ 文档 §5.2 的 $\nu(c)=e^{-q\tau}n(d_1)\sqrt\tau$。**方法验证通过**，下面对 $r_f,\tau,b$ 用同一套手法。
+
+顺带把 σ 文档 §9 第一条 TODO（"验证 $\nu_A/y_A$ 和 $\nu_B/y_B$ 的符号"）用 toy anchor 数值填上：
+
+$$
+\frac{\nu_A}{y_A}=\frac{0.110582}{0.032946}=3.35592,
+\qquad
+\frac{\nu_B}{y_B}=\frac{0.114693}{0.053382}=2.14848
+$$
+$$
+\frac{\partial\log f_B}{\partial\sigma}\Big|_{\text{anchor}}=3.35592-2.14848=+1.20744>0
+$$
+在 toy anchor **确认为正**：$f_B$ 随 $\sigma$ 上升，和 σ 文档 §5.3 的猜测方向一致（这只是这一点的数值确认，不是全局证明——严格的全局符号仍是待细化项）。
+
+---
+
+## 3. 从 $f_B$ 到 $D(c_A)$、$r^{**}$ 的一般传导公式
+
+这一节只做一次，后面 $r_f,b,\tau$ 三节直接调用，不重复推。
+
+### 3.1 $f_B$ 的导数 = "yield 弹性差" $\times f_B$
+
+$f_B=f_A\,y_A/y_B$，$f_A$ 是滑块设的常数，不随任何定价参数 $\theta\in\{\sigma,r_f,\tau,b,q\}$ 变化。两边取对数：
+$$
+\log f_B=\log f_A+\log y_A-\log y_B
+$$
+对 $\theta$ 求导（$\log f_A$ 是常数，导数为 0）：
+$$
+\frac{\partial\log f_B}{\partial\theta}
+=\frac{1}{y_A}\frac{\partial y_A}{\partial\theta}-\frac{1}{y_B}\frac{\partial y_B}{\partial\theta}
+\equiv\frac{X_A}{y_A}-\frac{X_B}{y_B}
+\tag{3a}
+$$
+其中 $X\equiv\partial y/\partial\theta$ 是待定的"某个参数对 Call Yield 的偏导"（下面三节分别去求）。
+
+再用 $\dfrac{\partial\log f_B}{\partial\theta}=\dfrac{1}{f_B}\dfrac{\partial f_B}{\partial\theta}$（对数导数的定义）两边乘 $f_B$：
+
+$$
+\boxed{\;
+\frac{\partial f_B}{\partial\theta}=f_B\left(\frac{X_A}{y_A}-\frac{X_B}{y_B}\right)
+\;}
+\tag{3b}
+$$
+
+### 3.2 $D(c_A)$ 的导数
+
+由 (1)，$D(c_A)=f_B(c_A-c_B)$，$c_A,c_B$ 是滑块设的常数，不随 $\theta$ 变。直接对 $\theta$ 求导（乘法里只有 $f_B$ 是 $\theta$ 的函数）：
+
+$$
+\boxed{\;
+\frac{\partial D(c_A)}{\partial\theta}=(c_A-c_B)\,\frac{\partial f_B}{\partial\theta}
+\;}
+\tag{3c}
+$$
+
+### 3.3 $r^{**}$ 的导数（商法则，逐步展开）
+
+$r^{**}=\dfrac{f_Ac_A-f_Bc_B}{f_A-f_B}$。记分子 $N(\theta)=f_Ac_A-f_B(\theta)c_B$，分母 $\text{Den}(\theta)=f_A-f_B(\theta)$（$f_A,c_A,c_B$ 是常数，只有 $f_B$ 随 $\theta$ 动）。
+
+第 1 步——先求 $N,\text{Den}$ 各自对 $\theta$ 的导数（都只是把 $f_B$ 换成 $\partial f_B/\partial\theta$，其余项是常数导数为 0）：
+$$
+N'(\theta)=-c_B\,\frac{\partial f_B}{\partial\theta},
+\qquad
+\text{Den}'(\theta)=-\frac{\partial f_B}{\partial\theta}
+$$
+
+第 2 步——商法则 $\left(\dfrac{N}{\text{Den}}\right)'=\dfrac{N'\text{Den}-N\,\text{Den}'}{\text{Den}^2}$，代入：
+$$
+\frac{\partial r^{**}}{\partial\theta}
+=\frac{\bigl[-c_B\,\partial_\theta f_B\bigr](f_A-f_B)-\bigl[f_Ac_A-f_Bc_B\bigr]\bigl[-\partial_\theta f_B\bigr]}{(f_A-f_B)^2}
+$$
+
+第 3 步——把公共因子 $\partial_\theta f_B$ 提出来，括号里剩下的代数化简：
+$$
+=\frac{\partial_\theta f_B}{(f_A-f_B)^2}
+\Bigl[-c_B(f_A-f_B)+(f_Ac_A-f_Bc_B)\Bigr]
+$$
+
+第 4 步——展开中括号：$-c_Bf_A+c_Bf_B+f_Ac_A-f_Bc_B$，其中 $+c_Bf_B$ 和 $-f_Bc_B$ **正好抵消**，只剩下：
+$$
+-c_Bf_A+f_Ac_A=f_A(c_A-c_B)
+$$
+
+第 5 步——代回，得到最终一般公式：
+
+$$
+\boxed{\;
+\frac{\partial r^{**}}{\partial\theta}
+=\frac{f_A(c_A-c_B)}{(f_A-f_B)^2}\,\frac{\partial f_B}{\partial\theta}
+\;}
+\tag{3d}
+$$
+
+toy 特例（$f_A=1,c_B=0$）：$\dfrac{\partial r^{**}}{\partial\theta}=\dfrac{c_A}{(1-f_B)^2}\dfrac{\partial f_B}{\partial\theta}$，和 σ 文档 §5.4 给的公式完全一致——(3d) 就是它的一般版本。
+
+**结论（三节都会用）：** 任何参数 $\theta$ 对 $D(c_A)$、$r^{**}$ 的效果，和它对 $f_B$ 的效果**同号**（因为 $(c_A-c_B)>0$、$(f_A-f_B)^2>0$），只是被 (3c)(3d) 的正系数放大/缩小。所以后面每一节，真正要算的只有一件事：$\partial y/\partial\theta$，也就是 $X_A,X_B$。
+
+---
+
+## 4. $r_f$（risk-free rate）的比较静态
+
+### 4.1 什么在动
+
+固定 $\sigma,\tau,q,b,c_A,c_B,f_A$，只动 $r_f$。通道：
+$$
+r_f\ \longrightarrow\ \bigl(y_A,y_B\bigr)\ \longrightarrow\ f_B=\frac{y_A}{y_B}\ \longrightarrow\ \bigl(D(c_A),\,r^{**}\bigr)
+$$
+（注意：$r_f$ 还会出现在权利金的计息因子 $e^{r_f\tau}$ 里，即 $\tilde y=y\,e^{r_f\tau}$——但 premium-match 后 $f_A\tilde y_A=f_B\tilde y_B$ 两边这个因子完全一样、直接抵消，详见 `00_theory_derivation_en.md` (3) 附近的推导，所以 $D(r)$ 里根本看不到这个因子，$r_f$ 只通过上面这条 $y$ 的通道起作用。）
+
+### 4.2 $\partial y/\partial r_f$ 的推导（逐步）
+
+$y=e^{-(q+b)\tau}N(d_1)-k\,e^{-r_f\tau}N(d_2)$，(0a)。$r_f$ 在这个式子里出现在两处：
+
+- **显式**：第二项前面的 $e^{-r_f\tau}$
+- **隐式**：通过 (0b) 的 carry 项 $r_f\tau$ 进入 $d_1,d_2$
+
+**第 1 步——隐式通道的两个偏导.** $\sigma,\tau,k$ 都固定，(0b) 分母 $\sigma\sqrt\tau$ 不含 $r_f$。分子里 $r_f$ 的系数是 $\tau$，所以
+$$
+\frac{\partial d_1}{\partial r_f}=\frac{\tau}{\sigma\sqrt\tau}=\frac{\sqrt\tau}{\sigma}
+$$
+又因为 $d_2=d_1-\sigma\sqrt\tau$，右边的 $\sigma\sqrt\tau$ 不含 $r_f$，所以
+$$
+\frac{\partial d_2}{\partial r_f}=\frac{\partial d_1}{\partial r_f}=\frac{\sqrt\tau}{\sigma}
+$$
+**两者相等**（这是 $r_f$ 只在分子里线性出现、且对 $d_1,d_2$ 的位移量 $\sigma\sqrt\tau$ 没有影响的直接结果）。
+
+**第 2 步——隐式通道对 $y$ 的贡献.** 链式法则：
+$$
+e^{-(q+b)\tau}n(d_1)\frac{\partial d_1}{\partial r_f}-k\,e^{-r_f\tau}n(d_2)\frac{\partial d_2}{\partial r_f}
+=\Phi\left(\frac{\partial d_1}{\partial r_f}-\frac{\partial d_2}{\partial r_f}\right)=\Phi\cdot 0=0
+$$
+（第一个等号用引理 (2b) 把两个系数换成同一个 $\Phi$；第二个等号用第 1 步的"两者相等"。）**隐式通道贡献精确为零。**
+
+**第 3 步——显式通道.** 对 $-k\,e^{-r_f\tau}N(d_2)$ 里的 $e^{-r_f\tau}$ 直接求导：
+$$
+\frac{\partial}{\partial r_f}\bigl[-k\,e^{-r_f\tau}\bigr]N(d_2)=k\tau\,e^{-r_f\tau}N(d_2)
+$$
+
+**第 4 步——两个通道相加**（第 2 步是 0，只剩第 3 步）：
+
+$$
+\boxed{\;
+\frac{\partial y}{\partial r_f}=k\,\tau\,e^{-r_f\tau}\,N(d_2)
+\;}
+\tag{4a}
+$$
+
+（这其实就是标准 BS 的 $\rho$ 除以 $S_0$：`ab_core.py` 里 `rho = K*tau*disc*nd2`，(4a) 正是 $\rho/S_0$，和代码对得上。）
+
+### 4.3 代入 toy anchor
+
+$$
+X_A=\frac{\partial y_A}{\partial r_f}=1.05\times\tfrac1{12}\times e^{-0.04/12}\times0.339115=0.029574
+$$
+$$
+X_B=\frac{\partial y_B}{\partial r_f}=1.00\times\tfrac1{12}\times e^{-0.04/12}\times0.484329=0.040226
+$$
+
+### 4.4 $f_B,D(c_A),r^{**}$ 的导数
+
+由 (3a)：
+$$
+\frac{\partial\log f_B}{\partial r_f}=\frac{0.029574}{0.032946}-\frac{0.040226}{0.053382}=0.897660-0.753489=+0.144108
+$$
+
+由 (3b)：$\dfrac{\partial f_B}{\partial r_f}=0.617160\times0.144108=+0.088938$
+
+由 (3c)：$\dfrac{\partial D(c_A)}{\partial r_f}=0.05\times0.088938=+0.0044469=+0.44469\%$（每单位 $r_f$，即 $r_f$ 涨 100 个百分点时 $D(c_A)$ 涨这么多——记住这是导数，不是有限变化）
+
+由 (3d)：$\dfrac{\partial r^{**}}{\partial r_f}=\dfrac{0.05}{(1-0.617160)^2}\times0.088938=\dfrac{0.05}{0.146568}\times0.088938=+0.030340$
+
+### 4.5 数值表（精确 solve，不是线性近似）
+
+| $r_f$ | $y_A$ | $y_B$ | $f_B$ | $D(c_A)$ | $r^{**}$ |
+|---|---|---|---|---|---|
+| 0% | 3.1777% | 5.1788% | 0.6136 | 3.0680% | 12.94% |
+| 2% | 3.2358% | 5.2581% | 0.6154 | 3.0769% | 13.00% |
+| 4%（anchor） | 3.2945% | 5.3382% | 0.6172 | 3.0858% | 13.06% |
+| 6% | 3.3541% | 5.4191% | 0.6189 | 3.0947% | 13.12% |
+| 8% | 3.4143% | 5.5006% | 0.6207 | 3.1036% | 13.18% |
+
+局部导数预测（4%→8%，$\Delta r_f=0.04$）：$\Delta r^{**}\approx0.030340\times0.04=0.1214\%$；实际 $13.18\%-13.06\%=0.12\%$。吻合（这段范围里 $r^{**}(r_f)$ 几乎是直线，线性近似很准）。
+
+**结论：$r_f\uparrow\Rightarrow f_B\uparrow\Rightarrow D(c_A)\uparrow, r^{**}$ 右移——方向和 $\sigma\uparrow$ 完全一样，但量级差两个数量级**（$r_f$ 从 0 涨到 8%，$r^{**}$ 只挪了 24bp；$\sigma$ 从 10%涨到 60%，$r^{**}$ 挪了 11.7 个百分点）。经济上说得通：$r_f$ 只通过一个相对温和的 forward-carry 通道影响 OTM/ATM 的相对定价，不像 $\sigma$ 直接改变两者的"到达概率"。
+
+---
+
+## 5. borrow $b$ 的比较静态
+
+### 5.1 什么在动
+
+通道完全一样：$b\longrightarrow(y_A,y_B)\longrightarrow f_B\longrightarrow(D(c_A),r^{**})$。
+
+### 5.2 $\partial y/\partial b$ 的推导（逐步，和 §4.2 完全对称）
+
+$b$ 在 (0a)(0b) 里出现两处：
+
+- **显式**：第一项前面的 $e^{-(q+b)\tau}$
+- **隐式**：carry 项里的 $-b\tau$（系数是 $-1$，而 $r_f$ 的系数是 $+1$——这是 $b$ 和 $r_f$ 唯一的形式差异）
+
+**第 1 步——隐式通道.** 分子里 $b$ 的系数是 $-\tau$，分母不含 $b$：
+$$
+\frac{\partial d_1}{\partial b}=\frac{-\tau}{\sigma\sqrt\tau}=-\frac{\sqrt\tau}{\sigma},
+\qquad
+\frac{\partial d_2}{\partial b}=\frac{\partial d_1}{\partial b}=-\frac{\sqrt\tau}{\sigma}
+$$
+（同样两者相等，理由和 §4.2 第 1 步一样：位移量 $\sigma\sqrt\tau$ 不含 $b$。）
+
+**第 2 步——隐式通道对 $y$ 的贡献**，和 §4.2 第 2 步同样的代数：
+$$
+\Phi\left(\frac{\partial d_1}{\partial b}-\frac{\partial d_2}{\partial b}\right)=\Phi\cdot 0=0
+$$
+**隐式通道贡献仍然精确为零**（两者相等就够了，符号本身不影响这个结论）。
+
+**第 3 步——显式通道.** 对 $e^{-(q+b)\tau}$ 直接求导：
+$$
+\frac{\partial}{\partial b}\bigl[e^{-(q+b)\tau}\bigr]N(d_1)=-\tau\,e^{-(q+b)\tau}N(d_1)
+$$
+
+**第 4 步——相加**（隐式为 0）：
+
+$$
+\boxed{\;
+\frac{\partial y}{\partial b}=-\tau\,e^{-(q+b)\tau}\,N(d_1)
+\;}
+\tag{5a}
+$$
+
+### 5.3 推论：这也是 $\partial y/\partial q$（dividend yield 的比较静态，免费搭车）
+
+(0a)(0b) 里 $q,b$ 只以 $q+b$ 的和的形式出现，从未单独出现过。所以把 §5.2 的推导逐字重做一遍、把每个 "$b$" 换成 "$q$"，代数完全不变（因为推导过程只用到 "carry 里系数是 $-1$、显式项系数是 $-1$"这两个事实，$q$ 和 $b$ 在这两点上完全对称）：
+
+$$
+\boxed{\;
+\frac{\partial y}{\partial q}=-\tau\,e^{-(q+b)\tau}\,N(d_1)=\frac{\partial y}{\partial b}
+\;}
+\tag{5b}
+$$
+
+**这就是把 `ab_core.py` 文档字符串里那句"borrow enters exactly like an extra dividend yield"从一句经济学直觉变成一个可以逐步推出来的定理**：不仅方向一样，(5a)(5b) 是**逐项相等的同一个函数**。因此本节后面对 $b$ 算出来的 $f_B,D(c_A),r^{**}$ 的所有导数数值，原样就是 $q$ 的导数数值——不用重算。
+
+**但要小心一个容易搞混的地方：** $q$ 还会以另一条路径出现在 $D(r)$ 里——(1a) 式 $R_{cc}=r+q+f\tilde y-f(r-c)^+$ 里那个加项 $q$（"持有正股收到的分红"）。这一条在 $R_A-R_B$ 里**精确抵消**（A、B 都是 long 1 单位正股，分红项一样多，减法里直接消掉，见 `00_theory_derivation_en.md` (3) 式或 `ab_core.py` 的 `dq` 变量），**和这里说的"$q$ 通过 BS 定价影响 $y(c)\Rightarrow f_B$"是两条完全不同的通道**：
+
+| $q$ 的通道 | 走的路 | 对 $D(r)$ 的影响 |
+|---|---|---|
+| (a) 分红直接进 $R_{cc}$ 的加项 | $R_{cc}=r+\mathbf{q}+\cdots$ | 精确抵消，**恒为 0** |
+| (b) 分红作为 BS 定价输入 | $q\to y(c)\to f_B$ | **不抵消**，公式就是 (5b)，和 borrow 完全同构 |
+
+本节（以及下面所有数值）说的都是通道 (b)。
+
+### 5.4 代入 toy anchor
+
+$$
+X_A=\frac{\partial y_A}{\partial b}=-\tfrac1{12}\times1\times0.387832=-0.032319
+$$
+$$
+X_B=\frac{\partial y_B}{\partial b}=-\tfrac1{12}\times1\times0.536100=-0.044675
+$$
+
+### 5.5 $f_B,D(c_A),r^{**}$ 的导数
+
+$$
+\frac{\partial\log f_B}{\partial b}=\frac{-0.032319}{0.032946}-\frac{-0.044675}{0.053382}=-0.980968-(-0.836942)=-0.144026
+$$
+
+（用更高精度重算一致为 $-0.144108$，与 §4.4 的 $r_f$ 结果 $+0.144108$ **数值上正好相反**——下面证明这不是巧合。）
+
+$$
+\frac{\partial f_B}{\partial b}=0.617160\times(-0.144108)=-0.088938
+$$
+$$
+\frac{\partial D(c_A)}{\partial b}=0.05\times(-0.088938)=-0.44469\%,
+\qquad
+\frac{\partial r^{**}}{\partial b}=\frac{0.05}{0.146568}\times(-0.088938)=-0.030340
+$$
+
+**恰好是 §4.4 $r_f$ 结果的负数**，一位不差。
+
+### 5.6 定理：$\partial\log f_B/\partial r_f=-\partial\log f_B/\partial b$，精确成立（不是数值巧合）
+
+**观察.** carry $=r_f-q-b$：$r_f$ 的系数是 $+1$，$b$ 的系数是 $-1$。同时联合把 $r_f\to r_f+\varepsilon$、$b\to b+\varepsilon$ 一起挪动：
+
+- carry 里 $r_f-b$ 那部分：$(r_f+\varepsilon)-(b+\varepsilon)=r_f-b$，**完全不变**——所以 $d_1,d_2$ 完全不变（它们只通过 carry 依赖 $r_f,b$）。
+- 但两个显式折现因子都各自多了一个 $e^{-\varepsilon\tau}$：$e^{-r_f\tau}\to e^{-(r_f+\varepsilon)\tau}=e^{-r_f\tau}e^{-\varepsilon\tau}$，$e^{-(q+b)\tau}\to e^{-(q+b+\varepsilon)\tau}=e^{-(q+b)\tau}e^{-\varepsilon\tau}$。
+
+**代入 (0a)：**
+$$
+y(r_f+\varepsilon,\,b+\varepsilon)
+=e^{-\varepsilon\tau}\Bigl[e^{-(q+b)\tau}N(d_1)-k\,e^{-r_f\tau}N(d_2)\Bigr]
+=e^{-\varepsilon\tau}\,y(r_f,b)
+\tag{5c}
+$$
+（$d_1,d_2$ 不变，所以中括号里就是原来的 $y$，唯一变化是外面多乘了一个公共的 $e^{-\varepsilon\tau}$。经济上完全说得通：$r_f,b$ 联合同幅度上移时，标的的**风险中性漂移** $r_f-q-b$ 一点没变，期权到期时的分布完全一样，唯一变化的是把这笔到期payoff **折现回今天用的利率**变高了 $\varepsilon$。）
+
+**两边对 $\varepsilon$ 求导，在 $\varepsilon=0$ 处取值.** 左边用链式法则：
+$$
+\frac{\partial y}{\partial r_f}+\frac{\partial y}{\partial b}=\frac{d}{d\varepsilon}\Big|_{\varepsilon=0}y(r_f+\varepsilon,b+\varepsilon)
+$$
+右边直接对 (5c) 求导：
+$$
+\frac{d}{d\varepsilon}\Big|_{\varepsilon=0}\bigl[e^{-\varepsilon\tau}y(r_f,b)\bigr]=-\tau\,y(r_f,b)
+$$
+所以：
+$$
+\boxed{\;
+\frac{\partial y}{\partial r_f}+\frac{\partial y}{\partial b}=-\tau\,y
+\;}
+\tag{5d}
+$$
+
+**核对：** (4a)+(5a) $=k\tau e^{-r_f\tau}N(d_2)-\tau e^{-(q+b)\tau}N(d_1)=-\tau\bigl[e^{-(q+b)\tau}N(d_1)-ke^{-r_f\tau}N(d_2)\bigr]=-\tau y$。和 (0a) 逐项对上，(5d) 成立，不依赖任何具体参数取值。
+
+**代入 (3a) 形式，对 A、B 分别用 (5d)：**
+$$
+\frac{\partial\log f_B}{\partial r_f}+\frac{\partial\log f_B}{\partial b}
+=\left(\frac{X_A^{r_f}}{y_A}-\frac{X_B^{r_f}}{y_B}\right)+\left(\frac{X_A^{b}}{y_A}-\frac{X_B^{b}}{y_B}\right)
+=\frac{X_A^{r_f}+X_A^{b}}{y_A}-\frac{X_B^{r_f}+X_B^{b}}{y_B}
+$$
+用 (5d)（$X_A^{r_f}+X_A^b=-\tau y_A$，$X_B^{r_f}+X_B^b=-\tau y_B$）：
+$$
+=\frac{-\tau y_A}{y_A}-\frac{-\tau y_B}{y_B}=-\tau-(-\tau)=0
+$$
+
+$$
+\boxed{\;
+\frac{\partial\log f_B}{\partial r_f}=-\frac{\partial\log f_B}{\partial b}
+\quad\text{对任意参数取值精确成立}
+\;}
+\tag{5e}
+$$
+
+这就是 §5.5 里数值"正好相反"的根本原因——不是这一组 toy 数字凑巧，是模型结构决定的恒等式。同一逻辑下 $D(c_A),r^{**}$ 对 $r_f$ 和对 $b$ 的导数也精确互为相反数（(3c)(3d) 都是 $\partial f_B/\partial\theta$ 的线性倍数）。
+
+### 5.7 数值表
+
+| $b$ | $y_A$ | $y_B$ | $f_B$ | $D(c_A)$ | $r^{**}$ |
+|---|---|---|---|---|---|
+| 0%（anchor） | 3.2945% | 5.3382% | 0.6172 | 3.0858% | 13.06% |
+| 1% | 3.2623% | 5.2937% | 0.6163 | 3.0814% | 13.03% |
+| 2% | 3.2304% | 5.2494% | 0.6154 | 3.0769% | 13.00% |
+| 3% | 3.1986% | 5.2053% | 0.6145 | 3.0725% | 12.97% |
+| 5% | 3.1358% | 5.1180% | 0.6127 | 3.0635% | 12.91% |
+
+和 §4.5 的 $r_f$ 表逐行比较：$b$ 每涨一段，$r^{**}$ 掉的量级和 $r_f$ 涨同样一段时 $r^{**}$ 涨的量级几乎一样（$b:0\to5\%$ 时 $r^{**}$ 掉 15bp；$r_f:0\to8\%$ 时涨 24bp，量级一致，尺度不同只是因为两边扫的区间宽度不同）——(5e) 的直接体现。
+
+**结论：$b\uparrow\Rightarrow f_B\downarrow\Rightarrow D(c_A)\downarrow, r^{**}$ 左移**——方向和 $r_f$ 精确相反，量级相同，且是可以证明的恒等式，不是经验观察。**同一套结果对 dividend yield $q$ 的"定价通道"逐字适用**（§5.3）。
+
+---
+
+## 6. $\tau$（tenor）的比较静态
+
+### 6.1 什么在动
+
+通道依旧一样：$\tau\to(y_A,y_B)\to f_B\to(D(c_A),r^{**})$。但要先确认三件事，$\tau$ 不会通过别的路径混进来：
+
+1. $c_A,c_B$ 是 return 空间里定义的 cap，不随 $\tau$ 变——折点位置不动。
+2. 权利金计息因子 $e^{r_f\tau}$ 对 A、B 是同一个 $\tau$，premium-match 后依然精确抵消（§4.1 括号里的论证对 $\tau$ 同样成立）。
+3. $D(r)$ 的自变量 $r$（标的的价格回报率）本身不是 $\tau$ 的函数——$\tau$ 只改变"这段 $r$ 对应多长的持有期"这件事的解释，不改变 $D(r)$ 这个函数的**形式**。
+
+所以照样只需要 $\partial y/\partial\tau$。
+
+### 6.2 $\partial y/\partial\tau$ 的推导（逐步；这条比 $r_f,b$ 多一个环节，因为 $\tau$ 同时出现在 (0b) 的分子和分母里）
+
+$\tau$ 在 (0a)(0b) 里出现三处：
+
+- 显式 A：$e^{-(q+b)\tau}$
+- 显式 B：$e^{-r_f\tau}$
+- 隐式：(0b) 分子的 $(\text{carry}+\tfrac12\sigma^2)\tau$，**以及分母的** $\sigma\sqrt\tau$（这是和 $r_f,b$ 唯一的结构差异——那两个参数只出现在分子）
+
+**第 1 步——两个显式通道，直接求导：**
+$$
+\frac{\partial}{\partial\tau}\bigl[e^{-(q+b)\tau}\bigr]N(d_1)=-(q+b)\,e^{-(q+b)\tau}N(d_1)
+$$
+$$
+\frac{\partial}{\partial\tau}\bigl[-k\,e^{-r_f\tau}\bigr]N(d_2)=k\,r_f\,e^{-r_f\tau}N(d_2)
+$$
+
+**第 2 步——隐式通道，链式法则先写出来（形式和 (2c) 一样）：**
+$$
+\Phi\left(\frac{\partial d_1}{\partial\tau}-\frac{\partial d_2}{\partial\tau}\right)
+$$
+（同样用了引理 (2b) 把两个系数换成同一个 $\Phi$。）
+
+**第 3 步——关键一步：不去分别算 $\partial d_1/\partial\tau,\partial d_2/\partial\tau$（那样要对 $A/(\sigma\sqrt\tau)$ 型的式子做商法则，很繁），而是像 (2d) 一样只求两者的差：**
+$$
+\frac{\partial d_1}{\partial\tau}-\frac{\partial d_2}{\partial\tau}
+=\frac{\partial(d_1-d_2)}{\partial\tau}
+=\frac{\partial(\sigma\sqrt\tau)}{\partial\tau}
+=\frac{\sigma}{2\sqrt\tau}
+$$
+（用了恒等式 $d_1-d_2\equiv\sigma\sqrt\tau$，和 (0b) 定义完全一致；这里 $\sigma$ 固定，对 $\tau$ 求导 $\sqrt\tau$ 用幂法则得 $\tfrac{1}{2\sqrt\tau}$。）
+
+**注意这一步和 §4.2、§5.2 的对应步骤不同**：那里差是 0（因为 $r_f,b$ 不影响 $d_1-d_2$ 这个位移量），这里差是 $\sigma/(2\sqrt\tau)\ne0$（因为 $\tau$ 本身就出现在位移量 $\sigma\sqrt\tau$ 里）——**这就是为什么 $\tau$ 的公式比 $r_f,b$ 多一项**。
+
+**第 4 步——隐式通道的最终贡献：**
+$$
+\Phi\cdot\frac{\sigma}{2\sqrt\tau}=e^{-(q+b)\tau}\,n(d_1)\,\frac{\sigma}{2\sqrt\tau}
+$$
+
+**第 5 步——三个通道相加：**
+
+$$
+\boxed{\;
+\frac{\partial y}{\partial\tau}
+=-(q+b)\,e^{-(q+b)\tau}N(d_1)
++k\,r_f\,e^{-r_f\tau}N(d_2)
++e^{-(q+b)\tau}\,n(d_1)\,\frac{\sigma}{2\sqrt\tau}
+\;}
+\tag{6a}
+$$
+
+**和已有代码的一致性核对.** `ab_core.py` 的 `theta`（日历时间衰减，$\Theta=\partial V/\partial t$，$t$ 是已过时间，$\tau=T-t$ 是剩余期限，所以 $\Theta=-\partial V/\partial\tau$）：
+```
+theta = -S*dfqb*pd1*sigma/(2*sqrt(tau)) + (q+borrow)*S*dfqb*nd1 - rf*K*disc*nd2
+```
+两边除以 $S_0$ 再取负号，正好就是 (6a)：$\partial y/\partial\tau=-\text{theta}/S_0$。独立推导和代码对上，交叉验证通过。
+
+### 6.3 代入 toy anchor
+
+$$
+X_A=\frac{\partial y_A}{\partial\tau}
+=-0\times(\cdots)+1.05\times0.04\times e^{-0.04/12}\times0.339115+0.383068\times\frac{0.45}{2\sqrt{1/12}}
+$$
+$q+b=0$ 时第一项是 0；第二项 $=1.05\times0.04\times0.996672\times0.339115=0.014184$；第三项 $=0.383068\times\dfrac{0.45}{2\times0.288675}=0.383068\times0.779423=0.298538$。加总 $\approx0.014184+0.298538=0.312722$（脚本算的精确值 $0.312767$，手算舍入误差）。
+
+$$
+X_B=\frac{\partial y_B}{\partial\tau}=0.328980
+$$
+
+### 6.4 $f_B,D(c_A),r^{**}$ 的导数
+
+$$
+\frac{\partial\log f_B}{\partial\tau}=\frac{0.312767}{0.032946}-\frac{0.328980}{0.053382}=9.49213-6.16135=+3.33078
+$$
+
+$$
+\frac{\partial f_B}{\partial\tau}=0.617160\times3.33078=+2.055621
+$$
+$$
+\frac{\partial D(c_A)}{\partial\tau}=0.05\times2.055621=+0.102781=+10.2781\%,
+\qquad
+\frac{\partial r^{**}}{\partial\tau}=\frac{0.05}{0.146568}\times2.055621=+0.701259
+$$
+
+**弹性比 $r_f$(0.144)、$b$($-0.144$) 大了一个数量级**——$\tau$ 是四个参数里最强的杠杆（比 $\sigma$ 的弹性 $+1.207$ 还大近 3 倍）。
+
+### 6.5 数值表（精确 solve）
+
+| $\tau$（月） | $y_A$ | $y_B$ | $f_B$ | $D(c_A)$ | $r^{**}$ |
+|---|---|---|---|---|---|
+| 1（anchor） | 3.2945% | 5.3382% | 0.6172 | 3.0858% | 13.06% |
+| 2 | 5.5201% | 7.6314% | 0.7233 | 3.6167% | 18.07% |
+| 3 | 7.2916% | 9.4190% | 0.7741 | 3.8707% | 22.14% |
+| 6 | 11.4171% | 13.5303% | 0.8438 | 4.2191% | 32.01% |
+| 12 | 17.4426% | 19.4813% | 0.8953 | 4.4767% | 47.78% |
+
+局部导数预测（1M→2M，$\Delta\tau=1/12$）：$\Delta r^{**}\approx0.701259\times\tfrac1{12}=5.84\%$；实际 $18.07\%-13.06\%=5.01\%$——量级、方向都对，1M→2M 是 $\tau$ 翻倍（相对变化 100%），线性近似本来就只在小范围内准，误差在预期内。
+
+**结论：$\tau\uparrow\Rightarrow f_B\uparrow$（比 $\sigma\uparrow$ 还猛）$\Rightarrow D(c_A)\uparrow,r^{**}$ 大幅右移**——从 1M 的 13% 一路推到 12M 的 48%。这正是 `_build_nb.py` 里那句"Longer tenor does the same thing, harder"的公式化版本：更长期限相当于把 $\sigma\sqrt\tau$（有效波动幅度）拉大，OTM 的 5% 相对这个幅度越来越"不算远"，$y_A$ 追 $y_B$ 追得比单纯拉 $\sigma$ 还快。
+
+---
+
+## 7. 汇总：四个参数的杠杆强度排一次序
+
+统一到"每变动 1 个单位（小数形式，即 100 个百分点）$\theta$，$r^{**}$ 变多少"这个尺度上（严格说是在 toy anchor 处的局部导数，不是跨大区间的精确变化）：
+
+| $\theta$ | $\partial\log f_B/\partial\theta$（弹性） | $\partial f_B/\partial\theta$ | $\partial r^{**}/\partial\theta$ | 方向 |
+|---|---|---|---|---|
+| $\sigma$（ATM vol） | $+1.207$ | $+0.746$ | $+0.254$（$25.4\%$） | $\sigma\uparrow\Rightarrow r^{**}$右移 |
+| $\tau$（tenor） | $+3.331$ | $+2.056$ | $+0.701$（$70.1\%$） | $\tau\uparrow\Rightarrow r^{**}$右移（**最强**） |
+| $r_f$（risk-free） | $+0.144$ | $+0.089$ | $+0.030$（$3.0\%$） | $r_f\uparrow\Rightarrow r^{**}$右移（弱） |
+| $b$（borrow，$=q$ 定价通道） | $-0.144$ | $-0.089$ | $-0.030$（$-3.0\%$） | $b\uparrow\Rightarrow r^{**}$左移（弱，和 $r_f$ 精确相反） |
+
+**排序（按 $\lvert\partial r^{**}/\partial\theta\rvert$ 从强到弱）：$\tau\gg\sigma\gg r_f\approx\vert b\vert$。**
+
+直觉版本：
+
+- $\tau,\sigma$ 都是"改变标的到期分布的展宽程度"——展宽越大，OTM 相对 ATM 越"不算远"，效果强。
+- $r_f,b$（以及 $q$ 的定价通道）都只是"改变 forward 相对 spot 的位置"——一次性平移分布，不改变展宽，效果弱，而且 $r_f$ 和 $b$ 因为 (5e) 精确对称。
+
+---
+
+## 8. 边界 / 待续清单
+
+- 本文和 σ 文档一样，**只做单变量比较静态**（一次只动一个参数，其余锁死）。交叉二阶效应（比如"$\tau$ 变长时 $\sigma$ 的杠杆是不是也变了"，即 $\partial^2\log f_B/\partial\sigma\partial\tau$）没有算，需要的话可以在本文框架下直接加一节（同样的引理、同样的 $\Phi$ 记号还能用）。
+- skew（$\sigma_A\ne\sigma_B$）下的比较静态仍然是 σ 文档 §7 说的"下一文档"，本文没有覆盖——`ab_core.py` 的 `wing` 参数已经实现，但 $f_B=y(c_A;\sigma_A)/y(0;\sigma_B)$ 这种情形下 $\partial f_B/\partial(\text{wing})$ 的解析式还没有正式写出来（口头版本见对话记录：wing 通过让 $\sigma_A\ne\sigma_B$ 独立影响 $y_A,y_B$，效果和本文 $\sigma$ 那一节的机制是同一族，但不完全等价，需要单独展开链式法则）。
+- 多期滚动（`00_theory_derivation_en.md` §7 的 variance drag / 滚动执行）对 $\tau$（这里是单期期限）的比较静态没有涉及——本文的 $\tau$ 是"一次期权的期限"，不是"持有窗口的期数"，两者是不同的比较静态问题。
+- 本文所有推导假设 flat $\sigma_{IV}$（对 A、B 用同一条 IV），和 σ 文档的前提一致。
+
+---
+
+## 9. 小考用三句话
+
+1. **一个引理管四个参数**：$e^{-(q+b)\tau}n(d_1)=k\,e^{-r_f\tau}n(d_2)$（记作 $\Phi$）。只要某参数对 $d_1,d_2$ 的位移量 $\sigma\sqrt\tau$ 没有影响，它经过 $d_1,d_2$ 的隐式效应就精确抵消为零，剩下的全是显式项——$r_f,b$ 属于这一类，公式干净；$\sigma,\tau$ 会改变位移量本身，多一个 $\Phi\times(\text{位移量的导数})$ 项。
+2. **四个参数的效果都先过 $f_B=y(c_A)/y(0)$ 这一关，再乘统一系数传到 $D(c_A),r^{**}$**：$\partial D(c_A)/\partial\theta=(c_A-c_B)\partial_\theta f_B$，$\partial r^{**}/\partial\theta=\frac{f_A(c_A-c_B)}{(f_A-f_B)^2}\partial_\theta f_B$——同号,只是被固定的正系数放大。
+3. **在 toy anchor**：$\tau$（70bp 的 $r^{**}$ 敏感度）$\gg\sigma$（25bp）$\gg r_f$（3bp）$\approx-b$（$-3$bp，和 $r_f$ 精确相反，可证明）。dividend yield $q$ 的定价通道和 $b$ 是同一个函数，公式免费复用；$q$ 的"分红加项"通道对 $D(r)$ 恒为零。
+
+---
+
+*配套数值核对脚本：见本文档正文各节内嵌的 `ab_core.py` 手算 / 有限差分交叉验证（相对误差 $<10^{-8}$）。*
+
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script>
+    (function () {
+      var src = document.getElementById('md-source').textContent;
+      var html = marked.parse(src, { mangle: false, headerIds: false });
+      var content = document.getElementById('content');
+      content.innerHTML = html;
+
+      // Build sidebar TOC from h2/h3, and stamp ids for anchor links.
+      var toc = document.getElementById('toc');
+      var headers = content.querySelectorAll('h2, h3');
+      var counters = {};
+      headers.forEach(function (h, i) {
+        var id = 'sec-' + i;
+        h.id = id;
+        var a = document.createElement('a');
+        a.href = '#' + id;
+        a.textContent = h.textContent;
+        if (h.tagName === 'H3') a.className = 'lvl3';
+        toc.appendChild(a);
+      });
+
+      renderMathInElement(content, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false }
+        ],
+        throwOnError: false
+      });
+    })();
+  </script>
+</body>
+</html>

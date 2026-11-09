@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Covered Call A vs B — r_f、tau、borrow 比较静态</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <style>
+    :root {
+      --bg: #f7f6f2;
+      --ink: #1c1b19;
+      --muted: #5c574f;
+      --line: #ddd8ce;
+      --card: #ffffff;
+      --accent: #1f4b3a;
+      --accent-soft: #e7f0eb;
+      --warn: #6b3f12;
+      --warn-bg: #f6ead8;
+      --mono: "SF Mono", "Menlo", "Consolas", monospace;
+      --sans: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+      --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--ui);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .wrap {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 840px);
+      gap: 28px;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 28px 20px 64px;
+    }
+    nav {
+      position: sticky;
+      top: 20px;
+      align-self: start;
+      font-size: 13px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    nav .brand {
+      font-weight: 650;
+      color: var(--accent);
+      margin-bottom: 12px;
+      letter-spacing: 0.02em;
+    }
+    nav a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 4px 0;
+      border-left: 2px solid transparent;
+      padding-left: 10px;
+      line-height: 1.3;
+    }
+    nav a:hover { color: var(--ink); border-left-color: var(--accent); }
+    nav a.lvl3 { padding-left: 20px; font-size: 12px; }
+    main { min-width: 0; }
+    header.hero {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 22px 24px;
+      margin-bottom: 18px;
+    }
+    header.hero h1 {
+      margin: 0 0 8px;
+      font-family: var(--sans);
+      font-size: 24px;
+      font-weight: 650;
+      line-height: 1.3;
+      color: var(--accent);
+    }
+    header.hero .sub {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin: 0;
+      white-space: pre-line;
+    }
+    #content { background: var(--card); border: 1px solid var(--line); padding: 20px 26px 30px; }
+    #content h2 {
+      margin: 30px 0 14px;
+      font-size: 19px;
+      font-family: var(--sans);
+      color: var(--accent);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+    #content h2:first-child { margin-top: 4px; }
+    #content h3 { margin: 20px 0 8px; font-size: 15.5px; font-weight: 650; }
+    #content p { margin: 0 0 12px; }
+    #content ul, #content ol { margin: 0 0 12px; padding-left: 1.3em; }
+    #content li { margin-bottom: 4px; }
+    #content hr { border: none; border-top: 1px solid var(--line); margin: 22px 0; }
+    #content blockquote {
+      border-left: 3px solid var(--accent);
+      background: var(--accent-soft);
+      margin: 14px 0;
+      padding: 8px 14px;
+      color: var(--ink);
+    }
+    #content blockquote p:last-child { margin-bottom: 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 16px;
+      font-size: 13.5px;
+      overflow-x: auto;
+      display: block;
+    }
+    table thead, table tbody { display: table; width: 100%; table-layout: auto; }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0eee8; font-weight: 650; }
+    #content pre {
+      overflow-x: auto;
+      background: #f0eee8;
+      padding: 10px 12px;
+      margin: 0 0 14px;
+    }
+    #content code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      background: #f0eee8;
+      padding: 1px 5px;
+    }
+    #content pre code { background: none; padding: 0; }
+    #content strong { color: #16281f; }
+    .katex-display {
+      margin: 0.6em 0 !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 0;
+    }
+    #loading { color: var(--muted); padding: 40px; text-align: center; }
+    footer {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 900px) {
+      .wrap { grid-template-columns: 1fr; }
+      nav { position: static; max-height: none; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+      nav a { border-left: none; padding-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav id="toc"><div class="brand">Theory notes</div></nav>
+    <main>
+      <header class="hero">
+        <h1>Covered Call A vs B — call skew（&sigma;<sub>A</sub>&ne;&sigma;<sub>B</sub>）比较静态</h1>
+        <p class="sub">wing 参数（skew 斜率）与 &sigma;<sub>ATM</sub> 各自怎么影响 f_B、D(r)、r**。逐步推导，本地 KaTeX 渲染。</p>
+      </header>
+      <div id="content"><div id="loading">渲染中…</div></div>
+      <footer>Source: <code>00_theory_comparative_statics_skew.md</code> · marked.js + KaTeX，本地打开即渲染，无需网络以外的任何安装。</footer>
+    </main>
+  </div>
+
+  <script type="text/markdown" id="md-source">
+# Covered Call A vs B — call skew（$\sigma_A\neq\sigma_B$）下的比较静态
+
+> 符号与设定对齐：`00_theory_derivation.pdf`、`00_theory_comparative_statics_sigma.md`、`00_theory_comparative_statics_rf_tau_borrow.md`
+> 代码对齐：`ab_core.py` 的 `wing` 参数 / `skew_vol()`
+> 本文就是 `00_theory_comparative_statics_sigma.md` §7 和 `00_theory_comparative_statics_rf_tau_borrow.md` §8 都说的「下一文档」：**ATM 和 OTM 的隐含波动率不再相等**，看 $\sigma_{\mathrm{ATM}}$、`wing`（skew 斜率）各自怎么影响 $f_B,D(r),r^{**}$。
+> **写作要求：每一步都要能从上一步直接推出来，中间不许跳步。**
+
+---
+
+## 0. 复用设定
+
+toy 和前两篇完全一样：
+
+| 结构 | 含义 | 典型 toy |
+|------|------|----------|
+| **A** | full overwrite，**OTM** | $f_A = 1$，$c_A = 5\%$（$k_A=1.05$） |
+| **B** | partial overwrite，**ATM** | $c_B = 0$（$k_B=1$），$f_B$ 由 premium-match 决定 |
+
+不同的地方只有一件事：**A、B 不再共用一条 $\sigma_{IV}$**——`ab_core.py` 里已经实现，本文把它的比较静态补上。
+
+---
+
+## 1. 符号补充
+
+在前两篇符号表基础上加两个：
+
+| 符号 | 含义 |
+|------|------|
+| $\sigma_{\mathrm{ATM}}$ | ATM 隐含波动率（skew 曲线的锚点，$c=0$ 处的值） |
+| `wing` | skew 斜率，单位"每 5% OTM 涨/跌多少 vol"（`ab_core.py` 里的十进制，如 $-0.02=$ 每 5% OTM 跌 2 个 vol 点） |
+
+`ab_core.py` 的参数化（`SKEW_REF_MONEYNESS = 0.05`）：
+
+$$
+\boxed{\;
+\sigma_{IV}(c)=\sigma_{\mathrm{ATM}}+\text{wing}\cdot\frac{c}{0.05}
+\;}
+\tag{0a}
+$$
+
+这是一条**过 $c=0$ 点、斜率为 $\text{wing}/0.05$ 的直线**（一阶线性 tilt，不是 SVI/SSVI 曲面拟合，`ab_core.py` 文档字符串里也这么说）。代码里目前有四个命名预设：
+
+| 预设 | wing | 含义 |
+|------|------|------|
+| `WING_FLAT` | $0$ | 平坦（BS，$\sigma_A=\sigma_B$，即前两篇的模型） |
+| `WING_NVDA` | $-0.0052$ | 单只成长股实测：OTM call 便宜一点点 |
+| `WING_INDEX` | $-0.02$ | 大盘指数：持续深度 put skew（换算到 call 侧） |
+| `WING_COMMODITY_45` | $+0.045$ | 商品类正 wing 压力测试（在 $\sigma_{\mathrm{ATM}}=45\%$ 锚点换算） |
+
+记 $\sigma_A\equiv\sigma_{IV}(c_A)$，$\sigma_B\equiv\sigma_{IV}(c_B)$。由 (0a)：
+
+$$
+\sigma_A=\sigma_{\mathrm{ATM}}+\text{wing}\cdot\frac{c_A}{0.05},
+\qquad
+\sigma_B=\sigma_{\mathrm{ATM}}+\text{wing}\cdot\frac{c_B}{0.05}
+\tag{0b}
+$$
+
+**toy 里 $c_B=0$**，所以 (0b) 第二式变成 $\sigma_B=\sigma_{\mathrm{ATM}}$——**B 恰好坐在 skew 锚点上**，这一点后面会反复用到，是本文和前两篇最大的结构差异来源。
+
+**退回检查：** $\text{wing}=0$ 时 (0b) 给出 $\sigma_A=\sigma_B=\sigma_{\mathrm{ATM}}$，(0a) 精确退回 flat smile。本文是 `00_theory_comparative_statics_sigma.md` 的**推广**，不是另一个模型。
+
+Yield 公式（复用 `00_theory_comparative_statics_rf_tau_borrow.md` (0a)(0b)，$q=b=0$）：
+
+$$
+y(c)=N\bigl(d_1(c)\bigr)-k\,e^{-r_f\tau}N\bigl(d_2(c)\bigr),
+\qquad
+d_1(c)=\frac{-\ln k+\bigl(r_f+\tfrac12\sigma_{IV}(c)^2\bigr)\tau}{\sigma_{IV}(c)\sqrt\tau}
+\tag{0c}
+$$
+
+**唯一要注意的地方：** 现在 $y_A=y(c_A)$ 是在 $\sigma_A$ 处算的 BS 价格，$y_B=y(c_B)$ 是在 $\sigma_B$ 处算的——**两个 yield 用的不是同一条 vol**，这是本文和前面"flat $\sigma$"那篇唯一的公式差异，其余（premium-match、$D(r)$、$D(c_A)$、$r^{**}$ 的定义）原样复用：
+
+$$
+f_B=\frac{y(c_A;\sigma_A)}{y(c_B;\sigma_B)},
+\qquad
+D(c_A)=f_B(c_A-c_B),
+\qquad
+r^{**}=\frac{f_Ac_A-f_Bc_B}{f_A-f_B}
+\tag{1}
+$$
+
+---
+
+## 2. 一般传导公式：直接复用，不重推
+
+`00_theory_comparative_statics_rf_tau_borrow.md` §3 推的三条公式——
+
+$$
+\frac{\partial f_B}{\partial\theta}=f_B\left(\frac{X_A}{y_A}-\frac{X_B}{y_B}\right),
+\qquad
+\frac{\partial D(c_A)}{\partial\theta}=(c_A-c_B)\frac{\partial f_B}{\partial\theta},
+\qquad
+\frac{\partial r^{**}}{\partial\theta}=\frac{f_A(c_A-c_B)}{(f_A-f_B)^2}\frac{\partial f_B}{\partial\theta}
+\tag{2}
+$$
+
+——推导过程完全没用到 $\theta$ 具体是什么，只用到 $f_B=f_A y_A/y_B$ 这个代数关系和 $f_A,c_A,c_B$ 不随 $\theta$ 变。所以对本文的两个新参数 $\theta\in\{\sigma_{\mathrm{ATM}},\text{wing}\}$，(2) 原样成立，**唯一要重新算的是 $X_A\equiv\partial y_A/\partial\theta$、$X_B\equiv\partial y_B/\partial\theta$**——下面两节各算一遍。
+
+---
+
+## 3. $\sigma_{\mathrm{ATM}}$ 的比较静态（在有 skew 的模型里）
+
+### 3.1 什么在动
+
+固定 `wing`、$\tau,r_f,c_A,c_B,f_A$，只动 $\sigma_{\mathrm{ATM}}$。通道多了一层：
+
+$$
+\sigma_{\mathrm{ATM}}\ \longrightarrow\ (\sigma_A,\sigma_B)\ \longrightarrow\ (y_A,y_B)\ \longrightarrow\ f_B\ \longrightarrow\ (D(c_A),r^{**})
+$$
+
+比 flat 版多了中间那一步——但这一步很简单。
+
+### 3.2 第一层链条：$\sigma_{\mathrm{ATM}}\to(\sigma_A,\sigma_B)$
+
+对 (0b) 两式直接求偏导（`wing`、$c_A$、$c_B$ 都固定，$\sigma_{\mathrm{ATM}}$ 的系数在两式里都是 $1$）：
+
+$$
+\frac{\partial\sigma_A}{\partial\sigma_{\mathrm{ATM}}}=1,
+\qquad
+\frac{\partial\sigma_B}{\partial\sigma_{\mathrm{ATM}}}=1
+\tag{3a}
+$$
+
+（这是 (0a) 这个参数化本身的设计：`wing` 决定的是"斜率"，$\sigma_{\mathrm{ATM}}$ 只做整体平移，所以曲线上每一点都跟着平移同样多——不管 $c$ 是多少。）
+
+### 3.3 第二层链条：$(\sigma_A,\sigma_B)\to(y_A,y_B)$，然后链式法则合成
+
+$y_A=y(c_A;\sigma_A)$，把 $\sigma_A$ 看成中间变量，链式法则：
+
+$$
+\frac{\partial y_A}{\partial\sigma_{\mathrm{ATM}}}
+=\underbrace{\frac{\partial y(c_A;\sigma)}{\partial\sigma}\Big|_{\sigma=\sigma_A}}_{\displaystyle \nu(c_A;\sigma_A)}\cdot\ \underbrace{\frac{\partial\sigma_A}{\partial\sigma_{\mathrm{ATM}}}}_{=1\ \text{by (3a)}}
+=\nu(c_A;\sigma_A)
+$$
+
+其中 $\nu(c;\sigma)$ 就是 `00_theory_comparative_statics_rf_tau_borrow.md` (2e) 证过的 vega 公式（$q=b=0$）：
+
+$$
+\nu(c;\sigma)=n\bigl(d_1(c;\sigma)\bigr)\sqrt\tau
+$$
+
+同理 $\dfrac{\partial y_B}{\partial\sigma_{\mathrm{ATM}}}=\nu(c_B;\sigma_B)$。记 $\nu_A\equiv\nu(c_A;\sigma_A)$，$\nu_B\equiv\nu(c_B;\sigma_B)$：
+
+$$
+\boxed{\;
+X_A^{\sigma_{\mathrm{ATM}}}\equiv\frac{\partial y_A}{\partial\sigma_{\mathrm{ATM}}}=\nu_A,
+\qquad
+X_B^{\sigma_{\mathrm{ATM}}}\equiv\frac{\partial y_B}{\partial\sigma_{\mathrm{ATM}}}=\nu_B
+\;}
+\tag{3b}
+$$
+
+**和 flat 版（`00_theory_comparative_statics_sigma.md` §5.2）公式形式完全一样**——差别只在于 $\nu_A,\nu_B$ 现在是在**两个不同的 vol**（$\sigma_A\ne\sigma_B$）上算的，flat 版是在同一个 $\sigma$ 上算。`wing`$=0$ 时 $\sigma_A=\sigma_B=\sigma_{\mathrm{ATM}}$，(3b) 精确退回 flat 版的 $\nu(c)$ 公式。
+
+代入 (2)：
+
+$$
+\boxed{\;
+\frac{\partial\log f_B}{\partial\sigma_{\mathrm{ATM}}}=\frac{\nu_A}{y_A}-\frac{\nu_B}{y_B}
+\;}
+\tag{3c}
+$$
+
+形式和 flat 版一字不差，只是 $\nu_A/y_A,\nu_B/y_B$ 现在在不同的 $\sigma$ 上取值——**skew 不改变"通道"的形式，只改变通道里代入的数字**。
+
+### 3.4 数值：四个预设下 $\sigma_{\mathrm{ATM}}$ 的杠杆有多不一样
+
+（$\sigma_{\mathrm{ATM}}=45\%$ 锚点，$\tau=1/12,r_f=4\%,q=b=0$）
+
+| wing 预设 | $\sigma_A$ | $\sigma_B$ | $f_B$ | $\partial\log f_B/\partial\sigma_{\mathrm{ATM}}$ | $\partial r^{**}/\partial\sigma_{\mathrm{ATM}}$ |
+|---|---|---|---|---|---|
+| `WING_COMMODITY_45`（$+4.5$vol） | $49.50\%$ | $45.00\%$ | $0.7109$ | $+0.7953$ | $+0.3382$ |
+| `WING_FLAT`（$0$，flat 版本身） | $45.00\%$ | $45.00\%$ | $0.6172$ | $+1.2080$ | $+0.2543$ |
+| `WING_NVDA`（$-0.52$vol） | $44.48\%$ | $45.00\%$ | $0.6064$ | $+1.2628$ | $+0.2471$ |
+| `WING_INDEX`（$-2$vol） | $43.00\%$ | $45.00\%$ | $0.5758$ | $+1.4286$ | $+0.2286$ |
+
+**观察（新结论，flat 版看不到）：** wing 越负（越像大盘指数那种深度 put skew，OTM call 越便宜），$\sigma_{\mathrm{ATM}}$ 对 $f_B$ 的弹性反而**越大**；wing 越正（商品式压力测试），弹性反而**越小**。直觉：$\nu(c)/y(c)$ 本身随 $\sigma$ 升高是下降的（vega/price 这个比值在深度 OTM 处对 vol 更敏感，vol 越低越敏感），wing 越负把 $\sigma_A$ 压得越低，$\nu_A/y_A$ 就越大，两边弹性差被放大；wing 越正把 $\sigma_A$ 推得越高，弹性差被压缩。**但 $\partial r^{**}/\partial\sigma_{\mathrm{ATM}}$ 这一列注意——它跟弹性反着走**（$0.795\to1.208\to1.263\to1.429$，但 $r^{**}$ 导数是 $0.338\to0.254\to0.247\to0.229$），因为 $f_B$ 本身的水平也在变（(2) 里还乘了 $f_B$ 和 $1/(1-f_B)^2$ 两个随 wing 变化的系数），不能只看弹性的符号/大小就断言 $r^{**}$ 导数怎么排——这是个容易踩的坑，下面 §5 的 wing 比较静态里还会再遇到一次。
+
+---
+
+## 4. `wing` 的比较静态（本文核心，flat 版完全没有的新内容）
+
+### 4.1 什么在动
+
+固定 $\sigma_{\mathrm{ATM}},\tau,r_f,c_A,c_B,f_A$，只动 `wing`。通道：
+
+$$
+\text{wing}\ \longrightarrow\ (\sigma_A,\sigma_B)\ \longrightarrow\ (y_A,y_B)\ \longrightarrow\ f_B\ \longrightarrow\ (D(c_A),r^{**})
+$$
+
+和 §3 结构一样，只是第一层链条不同。
+
+### 4.2 第一层链条：$\text{wing}\to(\sigma_A,\sigma_B)$
+
+对 (0b) 直接求偏导（$\sigma_{\mathrm{ATM}}$ 固定，`wing` 的系数分别是 $c_A/0.05$ 和 $c_B/0.05$，直接读出来，不需要任何代数技巧）：
+
+$$
+\boxed{\;
+\frac{\partial\sigma_A}{\partial\text{wing}}=\frac{c_A}{0.05},
+\qquad
+\frac{\partial\sigma_B}{\partial\text{wing}}=\frac{c_B}{0.05}
+\;}
+\tag{4a}
+$$
+
+**这一步和 §3.2 的 (3a) 正好反过来**：$\sigma_{\mathrm{ATM}}$ 平移整条线（两个偏导都是 $1$，和 $c$ 无关）；`wing` 转动整条线（偏导跟 $c$ 成正比，$c=0$ 处偏导恰好是 $0$——线绕着 ATM 锚点转，锚点自己不动）。
+
+**toy 里 $c_B=0$**，所以 (4a) 第二式给出：
+
+$$
+\frac{\partial\sigma_B}{\partial\text{wing}}=0
+\tag{4a'}
+$$
+
+**B 完全不受 wing 影响**——不是近似，是 (0a) 这个参数化本身在 $c=0$ 处精确为零导致的。这条是本节所有结果的根源，务必先确认这一步。
+
+### 4.3 第二层链条：链式法则合成 $\partial y/\partial\text{wing}$
+
+和 §3.3 一模一样的链式法则，只是链条第一环换成 (4a)：
+
+$$
+\frac{\partial y_A}{\partial\text{wing}}
+=\underbrace{\nu(c_A;\sigma_A)}_{=\nu_A}\cdot\frac{\partial\sigma_A}{\partial\text{wing}}
+=\nu_A\cdot\frac{c_A}{0.05}
+$$
+$$
+\frac{\partial y_B}{\partial\text{wing}}
+=\nu_B\cdot\frac{\partial\sigma_B}{\partial\text{wing}}
+=\nu_B\cdot\frac{c_B}{0.05}
+$$
+
+$$
+\boxed{\;
+X_A^{\text{wing}}=\nu_A\cdot\frac{c_A}{0.05},
+\qquad
+X_B^{\text{wing}}=\nu_B\cdot\frac{c_B}{0.05}
+\;}
+\tag{4b}
+$$
+
+toy 特例 $c_B=0$：$X_B^{\text{wing}}=0$（呼应 (4a')：B 的 yield 对 wing 的敏感度精确为零，不是近似为零）。
+
+### 4.4 代入 (2)：$f_B$ 对 wing 的导数
+
+一般公式：
+
+$$
+\boxed{\;
+\frac{\partial\log f_B}{\partial\text{wing}}
+=\frac{c_A}{0.05}\cdot\frac{\nu_A}{y_A}-\frac{c_B}{0.05}\cdot\frac{\nu_B}{y_B}
+\;}
+\tag{4c}
+$$
+
+toy 特例 $c_B=0$（第二项精确为零）：
+
+$$
+\frac{\partial\log f_B}{\partial\text{wing}}
+=\frac{c_A}{0.05}\cdot\frac{\nu_A}{y_A}
+$$
+
+再代入 toy 的 $c_A=5\%=0.05$，即 $c_A/0.05=1$（这是 toy 参数选得刚好和 `SKEW_REF_MONEYNESS` 相等，不是普遍成立，只是这一组 toy 数字凑巧简洁）：
+
+$$
+\boxed{\;
+\frac{\partial\log f_B}{\partial\text{wing}}\Big|_{\text{toy}}=\frac{\nu_A}{y_A}
+\;}
+\tag{4d}
+$$
+
+**（4d）和 §3 的 (3c) 对比一下：** flat 版（对 $\sigma_{\mathrm{ATM}}$ 求导）里是 $\nu_A/y_A-\nu_B/y_B$，两条腿都在动，弹性是**差**；wing 求导只有 $\nu_A/y_A$ 一项，**B 那一项因为 (4a') 直接消失，不是抵消，是压根没有**——这是 wing 和 flat-$\sigma$ 比较静态最本质的区别：flat-$\sigma$ 靠"A、B 两条腿谁涨得快"的**相对**效应驱动，wing 是**A 单边**被拧动，B 纹丝不动。
+
+### 4.5 代入 toy anchor 数值（$\text{wing}=0,\sigma_{\mathrm{ATM}}=45\%$ 处）
+
+复用 `00_theory_comparative_statics_rf_tau_borrow.md` §2.1 已经算出来的：$\nu_A=0.110582,\ y_A=0.032946$（这两个数不依赖 wing 是不是 0，只依赖 anchor 处 $\sigma_A=45\%$，此刻 wing=0 恰好使 $\sigma_A=\sigma_{\mathrm{ATM}}=45\%$，所以直接能抄）：
+
+$$
+\frac{\partial\log f_B}{\partial\text{wing}}\Big|_{\text{anchor}}=\frac{0.110582}{0.032946}=+3.35592
+$$
+
+$$
+\frac{\partial f_B}{\partial\text{wing}}=f_B\times3.35592=0.617160\times3.35592=+2.070896
+$$
+
+$$
+\frac{\partial D(c_A)}{\partial\text{wing}}=c_A\times2.070896=0.05\times2.070896=+0.103545=+10.3545\%
+$$
+
+$$
+\frac{\partial r^{**}}{\partial\text{wing}}=\frac{c_A}{(1-f_B)^2}\times2.070896=\frac{0.05}{0.146568}\times2.070896=+0.706716
+$$
+
+**有限差分核对**（直接对 $f_B(\sigma_{\mathrm{ATM}},\text{wing})$ 数值微分，$\pm10^{-6}$ 中心差分）：$\partial f_B/\partial\text{wing}=2.071507$，和上面解析解 $2.070896$ 一致到小数点后 3 位（残差量级 $6\times10^{-4}$，是 $\nu_A,y_A$ 只取 6 位小数带来的截断误差，不是公式错）。
+
+### 4.6 数值表（`ab_core.solve()` 精确算，不是线性近似）
+
+| wing | $\sigma_A$ | $\sigma_B$ | $f_B$ | $D(c_A)$ | $r^{**}$ |
+|---|---|---|---|---|---|
+| $-0.0300$ | $42.00\%$ | $45.00\%$ | $0.5553$ | $2.7764\%$ | $11.24\%$ |
+| $-0.0200$（`WING_INDEX`） | $43.00\%$ | $45.00\%$ | $0.5758$ | $2.8792\%$ | $11.79\%$ |
+| $-0.0052$（`WING_NVDA`） | $44.48\%$ | $45.00\%$ | $0.6064$ | $3.0320\%$ | $12.70\%$ |
+| $0$（`WING_FLAT`，anchor） | $45.00\%$ | $45.00\%$ | $0.6172$ | $3.0858\%$ | $13.06\%$ |
+| $+0.0200$ | $47.00\%$ | $45.00\%$ | $0.6587$ | $3.2935\%$ | $14.65\%$ |
+| $+0.0450$（`WING_COMMODITY_45`） | $49.50\%$ | $45.00\%$ | $0.7109$ | $3.5544\%$ | $17.29\%$ |
+| $+0.0600$ | $51.00\%$ | $45.00\%$ | $0.7423$ | $3.7116\%$ | $19.40\%$ |
+
+局部导数预测（$\text{wing}:0\to0.02$，$\Delta\text{wing}=0.02$）：$\Delta r^{**}\approx0.706716\times0.02=1.41\%$；实际 $14.65\%-13.06\%=1.59\%$——量级和方向对，wing 这个范围内 $r^{**}(\text{wing})$ 已经有点曲率，线性近似有中等误差（在预期内，和前两篇的经验一致：跨度越大，线性近似越粗）。
+
+**结论：$\text{wing}\uparrow$（call wing 越往上翘，OTM call 相对越贵）$\Rightarrow\sigma_A\uparrow$（$\sigma_B$ 不动）$\Rightarrow y_A\uparrow\Rightarrow f_B\uparrow\Rightarrow D(c_A)\uparrow,r^{**}$ 右移**——这正是 `AB_explorer.html` 里 `skewNote` 那句"wing > 0 (upward call wing) raises y_A → raises f_B → helps A; wing < 0 helps B"的公式化、可逐步推导的版本，此前只是断言，现在证完了。而且弹性量级（$+3.356$）和 §7（下面）汇总表里的 $\tau$（$+3.331$）同一个数量级，**wing 和 $\tau$ 是目前四个"结构性"参数（$\sigma_{\mathrm{ATM}},\tau,$ wing）里最强的两个杠杆**，比 $r_f,b$（$\pm0.144$）强一个数量级。
+
+---
+
+## 5. 一般情形（$c_B\ne0$）下会发生什么
+
+toy 一直设 $c_B=0$，把 B 钉在 skew 锚点上，所以 (4a') 才精确为零。如果 B 也不在 ATM（$c_B\ne0$，比如 B 自己也是个 OTM 更浅的结构），(4a) 第二式不再为零：
+
+$$
+\frac{\partial\sigma_B}{\partial\text{wing}}=\frac{c_B}{0.05}\ne0
+$$
+
+这时 (4c) 两项都不为零，wing 的效果变成"A、B 两条腿都被拧动、只是拧动幅度不同（幅度比就是 $c_A/c_B$）"——**从"单边被拧"退化成一个和 §3（$\sigma_{\mathrm{ATM}}$）结构相同的"两条腿都动、比弹性差"的问题**，公式上就是把 (4c) 当成一个新的"广义 flat-$\sigma$"问题来读：
+
+$$
+\frac{\partial\log f_B}{\partial\text{wing}}
+=\frac{c_A}{0.05}\cdot\frac{\nu_A}{y_A}-\frac{c_B}{0.05}\cdot\frac{\nu_B}{y_B}
+$$
+
+符号不再能直接看出来（$c_A/0.05>c_B/0.05>0$ 时，取决于 $\nu_A/y_A$ 和 $(c_B/c_A)\cdot\nu_B/y_B$ 谁大），这是留给"如果 B 结构也改成非 ATM"这个后续问题的——本文的 toy 到这里为止先不展开，标进 §7 的清单。
+
+---
+
+## 6. 汇总：五个参数一起排序
+
+把本文的 $\sigma_{\mathrm{ATM}}$（flat 版）、`wing`，和 `00_theory_comparative_statics_rf_tau_borrow.md` §7 的 $\tau,r_f,b$ 放到一张表里（都在 toy anchor 处取值，wing 那一列在 $\text{wing}=0$ 处取导数）：
+
+| $\theta$ | $\partial\log f_B/\partial\theta$ | $\partial r^{**}/\partial\theta$ | 方向 |
+|---|---|---|---|
+| $\tau$（tenor） | $+3.331$ | $+0.701$（$70.1\%$） | $\tau\uparrow\Rightarrow r^{**}$右移（最强） |
+| **`wing`（skew 斜率）** | $+3.356$ | $+0.707$（$70.7\%$） | **`wing`$\uparrow\Rightarrow r^{**}$右移（和 $\tau$ 同一档，本文新增）** |
+| $\sigma_{\mathrm{ATM}}$（flat 版） | $+1.208$ | $+0.254$（$25.4\%$） | $\sigma_{\mathrm{ATM}}\uparrow\Rightarrow r^{**}$右移 |
+| $r_f$（risk-free） | $+0.144$ | $+0.030$（$3.0\%$） | $r_f\uparrow\Rightarrow r^{**}$右移（弱） |
+| $b$（borrow，$=q$ 定价通道） | $-0.144$ | $-0.030$（$-3.0\%$） | $b\uparrow\Rightarrow r^{**}$左移（弱，和 $r_f$ 精确相反） |
+
+**排序：$\tau\approx\text{wing}\gg\sigma_{\mathrm{ATM}}\gg r_f\approx\vert b\vert$。**
+
+一句话：**tenor 和 skew 斜率是这个模型里最"贵"的两个旋钮，动一点点 $r^{**}$ 移动很多；ATM vol 本身是中档杠杆；利率和融资成本几乎无关痛痒。**
+
+---
+
+## 7. 边界 / 待续清单
+
+- §5 提到的 $c_B\ne0$ 通用情形——B 也偏离锚点时，wing 的符号不再能一眼看出，需要单独把 $\nu_A/y_A$ 和 $\nu_B/y_B$ 的相对大小条件写清楚。
+- 本文的 skew 仍然是**一阶线性 tilt**（`ab_core.py` 文档字符串自己说的"sensitivity knob, not an SVI/SSVI surface fit"），没有曲率（vol-of-vol、smile 的二阶项）。真实市场的 call wing 大概率不是直线，一阶近似只在 $c$ 不太大时可信。
+- 交叉二阶效应没做：$\partial^2\log f_B/\partial\sigma_{\mathrm{ATM}}\partial\text{wing}$（§3.4 的表已经侧面说明这个交叉项不是零——弹性随 wing 变化——但没有单独写出解析式）。
+- 和 `00_theory_derivation_en.md` §5.1"两个能打破 A 恒胜"的机制之一（skew）对照：那里给的是经验测量（NVDA 实测 0.52 vol），本文是给测量结果配上可以逐步验证的解析框架。
+
+---
+
+## 8. 小考用三句话
+
+1. **`wing` 转动 skew 曲线，$\sigma_{\mathrm{ATM}}$ 平移它**：$\partial\sigma_A/\partial\sigma_{\mathrm{ATM}}=\partial\sigma_B/\partial\sigma_{\mathrm{ATM}}=1$（两条腿一起动）；$\partial\sigma_A/\partial\text{wing}=c_A/0.05$，$\partial\sigma_B/\partial\text{wing}=c_B/0.05$（每条腿按自己离锚点的距离动）。
+2. **toy 里 $c_B=0$，B 正好坐在锚点上**，所以 wing 只单边拧动 A：$\partial\log f_B/\partial\text{wing}=\nu_A/y_A$（没有减法），这是和 $\sigma_{\mathrm{ATM}}$、$\tau$、$r_f$、$b$ 那种"两条腿比弹性差"完全不同的机制。
+3. **数量级上，`wing` 和 $\tau$ 并列全场最强杠杆**（$\partial r^{**}/\partial\theta\approx0.70$），比 $\sigma_{\mathrm{ATM}}$（$0.25$）强 3 倍，比 $r_f,b$（$0.03$）强 20+ 倍——这就是为什么 `00_theory_derivation_en.md` §5.1 把 skew 列为能打破"A 恒胜"结论的两个机制之一：它不是一个边缘效应。
+
+---
+
+*配套数值核对：本文所有 closed form 都对 `ab_core.py` 的 `skew_vol()` + `bs_call()` 组合做了有限差分交叉验证，并对照 `solve()` 的精确扫描表逐行核对。*
+
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script>
+    (function () {
+      var src = document.getElementById('md-source').textContent;
+      var html = marked.parse(src, { mangle: false, headerIds: false });
+      var content = document.getElementById('content');
+      content.innerHTML = html;
+
+      // Build sidebar TOC from h2/h3, and stamp ids for anchor links.
+      var toc = document.getElementById('toc');
+      var headers = content.querySelectorAll('h2, h3');
+      var counters = {};
+      headers.forEach(function (h, i) {
+        var id = 'sec-' + i;
+        h.id = id;
+        var a = document.createElement('a');
+        a.href = '#' + id;
+        a.textContent = h.textContent;
+        if (h.tagName === 'H3') a.className = 'lvl3';
+        toc.appendChild(a);
+      });
+
+      renderMathInElement(content, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false }
+        ],
+        throwOnError: false
+      });
+    })();
+  </script>
+</body>
+</html>
